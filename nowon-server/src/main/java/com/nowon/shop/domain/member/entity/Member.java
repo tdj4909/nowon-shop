@@ -1,4 +1,4 @@
-package com.nowon.shop.domain.product.entity;
+package com.nowon.shop.domain.member.entity;
 
 import jakarta.persistence.*;
 import lombok.Builder;
@@ -16,25 +16,29 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
-@Table(name = "products")
-public class Product {
+@Table(name = "members")
+public class Member {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(unique = true, nullable = false, updatable = false)
+    private String email;
+
+    @Column(nullable = false)
+    private String password;
+
     @Column(nullable = false)
     private String name;
 
-    private String category;
-
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Long price;
+    private Role role;
 
-    private Integer stock;
-
-    @Column(columnDefinition = "TEXT")
-    private String description;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MemberStatus status = MemberStatus.ACTIVE;
 
     @CreatedDate
     @Column(updatable = false)
@@ -44,11 +48,11 @@ public class Product {
     private LocalDateTime lastModifiedDate;
 
     @Builder
-    public Product(String name, String category, Long price, Integer stock, String description) {
+    public Member(String email, String password, String name, Role role, MemberStatus status) {
+        this.email = email;
+        this.password = password;
         this.name = name;
-        this.category = category;
-        this.price = price;
-        this.stock = stock;
-        this.description = description;
+        this.role = role;
+        this.status = (status != null) ? status : MemberStatus.ACTIVE;
     }
 }
