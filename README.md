@@ -40,6 +40,10 @@ React와 Spring Boot를 기반으로 한 통합 쇼핑몰 관리 시스템입니
 
 ## 📅 개발 히스토리
 
+### 2026-04-15
+- **[FRONT]**: 회원 등록, 회원 목록 수정
+- **[SERVER]**: 회원 등록, 회원 목록 api 구현
+
 ### 2026-04-14
 - **[SERVER]**: 상품(Product) 및 회원(Member) 도메인 구축 (Entity, Repository, Service)
 - **[SERVER]**: MySQL 연동 및 JPA Auditing 설정 (CreatedDate, LastModifiedDate)
