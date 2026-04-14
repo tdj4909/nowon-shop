@@ -1,20 +1,35 @@
 import { Link } from "react-router";
 import GenericTable, { Column } from "../components/tables/GenericTable";
 import Badge from "../components/ui/badge/Badge";
+import { useEffect, useState } from "react";
+import axios from "axios";
 
 interface User {
   id: number;
   name: string;
   email: string;
-  role: '일반회원' | '관리자';
-  joinDate: string;
+  role: 'USER' | 'ADMIN';
+  createdDate: string;
 }
 
 export default function UserList() {
-  const userData: User[] = [
-    { id: 1, name: "김철수", email: "chulsoo@example.com", role: "일반회원", joinDate: "2026-01-15" },
-    { id: 2, name: "관리자", email: "admin@myshop.com", role: "관리자", joinDate: "2025-12-01" },
-  ];
+  const [userData, setUserData] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // API 호출 함수
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await axios.get("http://localhost:8080/api/admin/members");
+        setUserData(response.data); // 데이터 설정
+      } catch (error) {
+        console.error("회원 목록 로딩 중 에러:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   // 회원 테이블을 위한 컬럼 설정
   const columns: Column<User>[] = [
@@ -25,12 +40,12 @@ export default function UserList() {
       header: "역할",
       key: "role",
       render: (item: User) => (
-        <Badge color={item.role === "관리자" ? "error" : "success"}>
-          {item.role}
+        <Badge color={item.role === "ADMIN" ? "error" : "success"}>
+          {item.role === "ADMIN" ? "관리자" : "일반회원"}
         </Badge>
       ),
     },
-    { header: "가입일", key: "joinDate" },
+    { header: "가입일", key: "createdDate" },
     {
       header: "관리",
       key: "actions",
@@ -42,6 +57,8 @@ export default function UserList() {
       ),
     },
   ];
+
+  if (loading) return <div className="p-10 text-center">데이터를 불러오는 중입니다...</div>;
 
   return (
     <div className="space-y-6">
@@ -57,7 +74,7 @@ export default function UserList() {
         </button>
       </div>
       
-      {/* 공통 테이블 사용 */}
+      {/* API로 받아온 실제 데이터 연동 */}
       <GenericTable data={userData} columns={columns} />
     </div>
   );

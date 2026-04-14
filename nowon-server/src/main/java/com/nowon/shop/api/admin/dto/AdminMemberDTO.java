@@ -3,14 +3,18 @@ package com.nowon.shop.api.admin.dto;
 import com.nowon.shop.domain.member.entity.Role;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminMemberDTO {
+    private Long id;
     private String email;
     private String password;
     private String name;
-    private Role role; // 관리자가 USER 또는 ADMIN 선택
+    private Role role;
+    private LocalDateTime createdDate;
 }

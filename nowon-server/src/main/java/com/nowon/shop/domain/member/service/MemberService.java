@@ -8,6 +8,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Service
 @RequiredArgsConstructor
 public class MemberService {
@@ -31,5 +34,19 @@ public class MemberService {
                 .build();
 
         memberRepository.save(member);
+    }
+
+    // 전체 회원 목록 조회
+    @Transactional(readOnly = true)
+    public List<AdminMemberDTO> findAllMembers() {
+        return memberRepository.findAll().stream()
+                .map(member -> AdminMemberDTO.builder()
+                        .id(member.getId())
+                        .email(member.getEmail())
+                        .name(member.getName())
+                        .role(member.getRole())
+                        .createdDate(member.getCreatedDate())
+                        .build())
+                .collect(Collectors.toList());
     }
 }
