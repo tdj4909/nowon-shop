@@ -21,8 +21,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                // CSRF 비활성화
                 .csrf(AbstractHttpConfigurer::disable)
-                // 1. CORS 상세 설정 추가 (리액트 연동용)
+                // CORS 설정
                 .cors(cors -> cors.configurationSource(request -> {
                     var config = new org.springframework.web.cors.CorsConfiguration();
                     config.setAllowedOrigins(java.util.List.of("http://localhost:5173"));
@@ -30,12 +31,13 @@ public class SecurityConfig {
                     config.setAllowedHeaders(java.util.List.of("*"));
                     return config;
                 }))
-                // 2. JWT 사용을 위한 세션 정책: STATELESS 설정
+                // JWT 사용을 위한 세션 정책: STATELESS 설정
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.STATELESS)
                 )
+                // 권한 허용 범위
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/members/**", "/api/products/**").permitAll()
+                        .requestMatchers("/api/admin/**", "/api/members/**", "/api/products/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)

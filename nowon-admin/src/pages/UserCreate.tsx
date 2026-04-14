@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
+import axios from "axios";
 
 export default function UserCreate() {
   const navigate = useNavigate();
@@ -7,8 +8,8 @@ export default function UserCreate() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
-    password: "", // 회원 등록 시 초기 비밀번호 설정 필요
-    role: "일반회원",
+    password: "",
+    role: "USER",
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -16,11 +17,21 @@ export default function UserCreate() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("신규 회원 데이터:", formData);
-    alert(`${formData.name} 님이 등록되었습니다.`);
-    navigate("/users");
+
+    try {
+          // 백엔드 컨트롤러 주소로 데이터 전송
+          const response = await axios.post("http://localhost:8080/api/admin/members", formData);
+          
+          if (response.status === 200) {
+            alert(`${formData.name} 님이 성공적으로 등록되었습니다.`);
+            navigate("/users"); // 등록 후 목록 페이지로 이동
+          }
+        } catch (error: any) {
+          console.error("회원 등록 에러:", error);
+          alert(error.response?.data || "회원 등록 중 오류가 발생했습니다.");
+        }
   };
 
   return (
@@ -82,8 +93,8 @@ export default function UserCreate() {
                 <input
                   type="radio"
                   name="role"
-                  value="일반회원"
-                  checked={formData.role === "일반회원"}
+                  value="USER"
+                  checked={formData.role === "USER"}
                   onChange={handleChange}
                   className="size-4"
                 />
@@ -93,8 +104,8 @@ export default function UserCreate() {
                 <input
                   type="radio"
                   name="role"
-                  value="관리자"
-                  checked={formData.role === "관리자"}
+                  value="ADMIN"
+                  checked={formData.role === "ADMIN"}
                   onChange={handleChange}
                   className="size-4"
                 />
