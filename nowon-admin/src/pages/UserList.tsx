@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import GenericTable, { Column } from "../components/tables/GenericTable";
 import Badge from "../components/ui/badge/Badge";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axiosInstance from "../api/axios";
 
 interface User {
   id: number;
@@ -20,7 +20,7 @@ export default function UserList() {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const response = await axios.get("http://localhost:8080/api/admin/members");
+        const response = await axiosInstance.get("http://localhost:8080/api/admin/members");
         setUserData(response.data); // 데이터 설정
       } catch (error) {
         console.error("회원 목록 로딩 중 에러:", error);

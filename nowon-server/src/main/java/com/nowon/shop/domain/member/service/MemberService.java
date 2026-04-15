@@ -1,8 +1,10 @@
 package com.nowon.shop.domain.member.service;
 
 import com.nowon.shop.api.admin.dto.AdminMemberDTO;
+import com.nowon.shop.api.auth.dto.LoginRequestDTO;
 import com.nowon.shop.domain.member.entity.Member;
 import com.nowon.shop.domain.member.repository.MemberRepository;
+import com.nowon.shop.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,7 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder; // 비밀번호 암호화 도구
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional
     public void register(AdminMemberDTO dto) {
@@ -49,4 +52,20 @@ public class MemberService {
                         .build())
                 .collect(Collectors.toList());
     }
+
+    @Transactional(readOnly = true)
+    public String login(LoginRequestDTO dto) {
+        // 이메일 존재 확인
+        Member member = memberRepository.findByEmail(dto.getEmail())
+                .orElseThrow(() -> new RuntimeException("존재하지 않는 사용자입니다."));
+
+        // 비밀번호 일치 확인 (암호화된 비번 비교)
+        if (!passwordEncoder.matches(dto.getPassword(), member.getPassword())) {
+            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+        }
+
+        // 토큰 생성 및 반환
+        return jwtTokenProvider.createToken(member.getEmail(), member.getRole().name());
+    }
+
 }
