@@ -41,17 +41,23 @@ React와 Spring Boot를 기반으로 한 통합 쇼핑몰 관리 시스템입니
 ## 📅 개발 히스토리
 
 ### 2026-04-15
-- **[FRONT]**: 회원 등록, 회원 목록 수정
+- **[FRONT-ADMIN]**: JWT 적용
+- **[SERVER]**: JWT 구현
+
+### 2026-04-15
+- **[FRONT-ADMIN]**: 회원 등록, 회원 목록 수정
 - **[SERVER]**: 회원 등록, 회원 목록 api 구현
 
 ### 2026-04-14
-- **[SERVER]**: 상품(Product) 및 회원(Member) 도메인 구축 (Entity, Repository, Service)
-- **[SERVER]**: MySQL 연동 및 JPA Auditing 설정 (CreatedDate, LastModifiedDate)
+- **[SERVER]**:
+  - 상품(Product) 및 회원(Member) 도메인 구축 (Entity, Repository, Service)
+  - MySQL 연동 및 JPA Auditing 설정 (CreatedDate, LastModifiedDate)
 - **[DOCS]**: 보안을 고려한 `application.yaml.sample` 구조 설계 및 README 작성
 
 ### 2026-04-13
-- **[FRONT]**: TailAdmin 기반 레이아웃 통합 및 관리자 메인 UI 제작
-- **[FRONT]**: 상품/주문/회원 관리를 위한 공통 제네릭 테이블 및 등록 폼 UI 제작
+- **[FRONT-ADMIN]**:
+  - TailAdmin 기반 레이아웃 통합 및 관리자 메인 UI 제작
+  - 상품/주문/회원 관리를 위한 공통 제네릭 테이블 및 등록 폼 UI 제작
 
 ### 2026-04-06
 - **[START]**: 프로젝트 초기 기획 및 아키텍처 설계
