@@ -1,6 +1,7 @@
 import { Link } from "react-router";
 import GenericTable, { Column } from "../components/tables/GenericTable";
-import Badge from "../components/ui/badge/Badge";
+import { useEffect, useState } from "react";
+import axiosInstance from "../api/axios";
 
 interface Product {
   id: number;
@@ -8,43 +9,40 @@ interface Product {
   category: string;
   price: number;
   stock: number;
+  status: string;
+  description: string;
+  createdDate: string;
 }
 
 export default function ProductList() {
-  const tableData: Product[] = [
-    { id: 1, name: "아이폰 15", category: "전자기기", price: 1200000, stock: 10 },
-    { id: 2, name: "나이키 운동화", category: "패션", price: 89000, stock: 50 },
-  ];
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    axiosInstance.get("/api/admin/products")
+      .then(res => setProducts(res.data))
+      .catch(err => console.error(err));
+  }, []);
 
   const columns: Column<Product>[] = [
     { header: "ID", key: "id" },
     { header: "상품명", key: "name" },
     { header: "카테고리", key: "category" },
-    {
-      header: "가격",
-      key: "price",
-      render: (item: Product) => `${item.price.toLocaleString()}원`,
+    { 
+      header: "가격", 
+      key: "price", 
+      render: (p) => <span>{p.price.toLocaleString()}원</span> 
     },
     { header: "재고", key: "stock" },
-    {
-      header: "상태",
-      key: "actions",
-      render: (item: Product) => (
-        <Badge color={item.stock > 0 ? "success" : "error"}>
-          {item.stock > 0 ? "판매중" : "품절"}
-        </Badge>
-      ),
-    },
+    { header: "상태", key: "status" },
+    { header: "설명", key: "description" },
+    { header: "생성일", key: "createdDate" },
     {
       header: "관리",
       key: "actions",
       render: () => (
-        <div className="flex gap-2">
-          <button className="text-blue-500 hover:underline">수정</button>
-          <button className="text-red-500 hover:underline">삭제</button>
-        </div>
-      ),
-    },
+        <button className="text-blue-500">상세보기</button>
+      )
+    }
   ];
 
   return (
@@ -61,7 +59,7 @@ export default function ProductList() {
         </button>
       </div>
 
-      <GenericTable data={tableData} columns={columns} />
+      <GenericTable data={products} columns={columns} />
     </div>
   );
 }
