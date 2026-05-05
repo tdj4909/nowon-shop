@@ -31,24 +31,33 @@ React와 Spring Boot를 기반으로 한 쇼핑몰 통합 관리 시스템입니
 - JWT 기반 Stateless 인증
 - `USER` / `ADMIN` 권한 분리 (RBAC)
 - Spring Security 필터 체인으로 API별 접근 제어
+- PrivateRoute로 비로그인 접근 차단 (프론트엔드)
 
 ### 📦 상품 관리
-- 상품 등록 / 목록 조회
+- 상품 등록 / 목록 조회 / 수정 / 삭제
 - 재고 상태(`SELL` / `SOLD_OUT` / `HIDE`) Enum 관리
+- `update()` 도메인 메서드로 Setter 없이 상품 정보 변경
 - JPA Auditing으로 등록일 / 수정일 자동 기록
 
 ### 👥 회원 관리
 - 회원 등록 / 목록 조회
 - 회원 상태(`ACTIVE` / `BANNED` / `WITHDRAWN`) Enum 관리
+- 어드민에서 회원 차단 / 활성화 처리
 - BCrypt 패스워드 암호화
 
 ### 🧾 주문 관리
 - 상품 주문 생성 / 취소
 - 주문 상태(`PENDING` → `PAID` → `SHIPPED` → `DELIVERED` / `CANCELLED`) 흐름 관리
 - **비관적 락(Pessimistic Lock)** 으로 동시 주문 시 재고 정합성 보장
-- 주문 취소 시 재고 자동 복구
+- 주문 취소 시 재고 자동 복구 및 상태 검증
 - `OrderItem`에 주문 당시 가격 별도 저장 (상품 가격 변동과 무관하게 주문 기록 보존)
 - `JOIN FETCH`로 N+1 문제 방지
+
+### 🛡 예외 처리
+- `ErrorCode` Enum으로 에러 코드 중앙 관리
+- `BusinessException` 커스텀 예외로 도메인 오류 표현
+- `@ControllerAdvice` 기반 `GlobalExceptionHandler`로 예외 일괄 처리
+- `ApiResponse<T>` 공통 응답 포맷으로 성공/실패 응답 통일
 
 ---
 
@@ -69,6 +78,8 @@ nowon-shop/
         │   ├── product/        # 상품 도메인
         │   └── order/          # 주문 도메인
         └── global/
+            ├── common/         # 공통 응답 포맷 (ApiResponse)
+            ├── exception/      # 예외 처리 (ErrorCode, BusinessException, GlobalExceptionHandler)
             └── security/       # JWT 필터 / Security 설정
 ```
 
@@ -112,6 +123,23 @@ npm run dev
 ## 📅 개발 히스토리
 
 ### 2026-05-05
+- **[FRONT-ADMIN]**: 어드민 화면 완성
+  - PrivateRoute 적용 (비로그인 접근 차단)
+  - 주문 목록 API 연동 및 상태 변경 / 취소 기능 구현
+  - 상품 수정 / 삭제 기능 구현
+  - 회원 차단 / 활성화 기능 구현
+- **[SERVER]**: 예외 처리 일원화 및 공통 응답 포맷 적용
+  - `ErrorCode` Enum, `BusinessException`, `GlobalExceptionHandler` 도입
+  - `ApiResponse<T>` 공통 응답 포맷 적용
+  - 서비스 레이어 전체 예외 교체 및 트랜잭션 패턴 개선
+- **[SERVER]**: 상품 수정 / 삭제 API 추가
+- **[SERVER]**: 회원 상태 변경 API 추가
+- **[TEST]**: 서비스 레이어 단위 테스트 15개 작성
+  - `ProductTest`: 재고 차감 / 복구 / 부족 예외 검증
+  - `MemberServiceTest`: 회원가입 / 로그인 / 중복 이메일 검증
+  - `OrderServiceTest`: 주문 생성 / 취소 / 상태변경 / 재고 복구 검증
+
+### 2026-05-05 (오전)
 - **[SERVER]**: 주문(Order) 도메인 구축
   - `Order` / `OrderItem` / `OrderStatus` 엔티티 설계
   - 비관적 락(`PESSIMISTIC_WRITE`)으로 재고 동시성 문제 처리
