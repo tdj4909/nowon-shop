@@ -1,5 +1,7 @@
 package com.nowon.shop.domain.product.entity;
 
+import com.nowon.shop.global.exception.BusinessException;
+import com.nowon.shop.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
@@ -60,7 +62,7 @@ public class Product {
     public void removeStock(int quantity) {
         int restStock = this.stock - quantity;
         if (restStock < 0) {
-            throw new IllegalStateException("재고가 부족합니다. 현재 재고: " + this.stock);
+            throw new BusinessException(ErrorCode.PRODUCT_OUT_OF_STOCK);
         }
         this.stock = restStock;
     }
