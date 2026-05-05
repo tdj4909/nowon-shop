@@ -71,4 +71,14 @@ public class Product {
     public void addStock(int quantity) {
         this.stock += quantity;
     }
+
+    // 상품 정보 수정 (Setter 대신 의미 있는 메서드)
+    public void update(String name, String category, Long price, Integer stock, String description, ProductStatus status) {
+        this.name = name;
+        this.category = category;
+        this.price = price;
+        this.stock = stock;
+        this.description = description;
+        this.status = status;
+    }
 }

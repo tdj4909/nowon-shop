@@ -63,4 +63,20 @@ public class ProductService {
                 .lastModifiedDate(product.getLastModifiedDate())
                 .build();
     }
+
+    @Transactional
+    public void updateProduct(Long productId, AdminProductDTO dto) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        product.update(dto.getName(), dto.getCategory(), dto.getPrice(),
+                dto.getStock(), dto.getDescription(), dto.getStatus());
+    }
+
+    @Transactional
+    public void deleteProduct(Long productId) {
+        if (!productRepository.existsById(productId)) {
+            throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
+        productRepository.deleteById(productId);
+    }
 }

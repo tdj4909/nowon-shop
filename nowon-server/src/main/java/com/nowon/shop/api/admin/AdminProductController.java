@@ -11,21 +11,39 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/admin/products")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "http://localhost:5173") // 리액트 포트 허용 (CORS 해결)
 public class AdminProductController {
 
     private final ProductService productService;
 
+    // 상품 목록 조회
     @GetMapping
     public ResponseEntity<List<AdminProductDTO>> getProducts() {
-        List<AdminProductDTO> list = productService.findAllProductsForAdmin();
-        System.out.println("데이터 확인: " + list); // 서버 콘솔에 리스트가 제대로 찍히는지 확인
-        return ResponseEntity.ok(list);
+        return ResponseEntity.ok(productService.findAllProductsForAdmin());
     }
 
+    // 상품 단건 조회
+    @GetMapping("/{productId}")
+    public ResponseEntity<AdminProductDTO> getProduct(@PathVariable Long productId) {
+        return ResponseEntity.ok(productService.findProductForAdmin(productId));
+    }
+
+    // 상품 등록
     @PostMapping
     public ResponseEntity<Long> createProduct(@RequestBody AdminProductDTO dto) {
-        Long productId = productService.saveProductForAdmin(dto);
-        return ResponseEntity.ok(productId);
+        return ResponseEntity.ok(productService.saveProductForAdmin(dto));
+    }
+
+    // 상품 수정
+    @PutMapping("/{productId}")
+    public ResponseEntity<Void> updateProduct(@PathVariable Long productId, @RequestBody AdminProductDTO dto) {
+        productService.updateProduct(productId, dto);
+        return ResponseEntity.ok().build();
+    }
+
+    // 상품 삭제
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<Void> deleteProduct(@PathVariable Long productId) {
+        productService.deleteProduct(productId);
+        return ResponseEntity.ok().build();
     }
 }

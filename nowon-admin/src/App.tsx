@@ -10,6 +10,9 @@ import OrderList from "./pages/OrderList";
 import UserList from "./pages/UserList";
 import ProductCreate from "./pages/ProductCreate";
 import UserCreate from "./pages/UserCreate";
+import PrivateRoute from "./components/common/PrivateRoute";
+
+import ProductEdit from "./pages/ProductEdit";
 
 export default function App() {
   return (
@@ -17,27 +20,22 @@ export default function App() {
       <Router>
         <ScrollToTop />
         <Routes>
-          {/* Admin Main Layout */}
-          <Route element={<AppLayout />}>
-            {/* Dashboard */}
+          {/* Admin Main Layout — 로그인 필요 */}
+          <Route element={<PrivateRoute><AppLayout /></PrivateRoute>}>
             <Route index path="/" element={<Home />} />
-
-            {/* Core Features */}
             <Route path="/products" element={<ProductList />} />
             <Route path="/products/create" element={<ProductCreate />} />
-
+            <Route path="/products/:productId/edit" element={<ProductEdit />} />
             <Route path="/orders" element={<OrderList />} />
-            
             <Route path="/users" element={<UserList />} />
             <Route path="/users/create" element={<UserCreate />} />
           </Route>
-          
 
           {/* Authentication */}
           <Route path="/signin" element={<SignIn />} />
           <Route path="/signup" element={<SignUp />} />
 
-          {/* 404 Page */}
+          {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>

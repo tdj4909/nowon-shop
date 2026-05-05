@@ -8,30 +8,53 @@ interface User {
   id: number;
   name: string;
   email: string;
-  role: 'USER' | 'ADMIN';
+  role: "USER" | "ADMIN";
+  status: "ACTIVE" | "BANNED" | "WITHDRAWN";
   createdDate: string;
 }
+
+const STATUS_BADGE_COLOR: Record<string, "success" | "error" | "warning"> = {
+  ACTIVE: "success",
+  BANNED: "error",
+  WITHDRAWN: "warning",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  ACTIVE: "정상",
+  BANNED: "차단",
+  WITHDRAWN: "탈퇴",
+};
 
 export default function UserList() {
   const [userData, setUserData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // API 호출 함수
+  const fetchUsers = async () => {
+    try {
+      const res = await axiosInstance.get("/api/admin/members");
+      setUserData(res.data);
+    } catch (err) {
+      console.error("회원 목록 로딩 실패:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const response = await axiosInstance.get("http://localhost:8080/api/admin/members");
-        setUserData(response.data); // 데이터 설정
-      } catch (error) {
-        console.error("회원 목록 로딩 중 에러:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchUsers();
   }, []);
 
-  // 회원 테이블을 위한 컬럼 설정
+  const handleStatusChange = async (memberId: number, status: string) => {
+    const label = STATUS_LABEL[status];
+    if (!confirm(`해당 회원을 "${label}" 상태로 변경하시겠습니까?`)) return;
+    try {
+      await axiosInstance.patch(`/api/admin/members/${memberId}/status?status=${status}`);
+      fetchUsers();
+    } catch (err: any) {
+      alert(err.response?.data?.message ?? "상태 변경에 실패했습니다.");
+    }
+  };
+
   const columns: Column<User>[] = [
     { header: "ID", key: "id" },
     { header: "이름", key: "name" },
@@ -39,20 +62,46 @@ export default function UserList() {
     {
       header: "역할",
       key: "role",
-      render: (item: User) => (
+      render: (item) => (
         <Badge color={item.role === "ADMIN" ? "error" : "success"}>
           {item.role === "ADMIN" ? "관리자" : "일반회원"}
         </Badge>
       ),
     },
-    { header: "가입일", key: "createdDate" },
+    {
+      header: "상태",
+      key: "status",
+      render: (item) => (
+        <Badge color={STATUS_BADGE_COLOR[item.status] ?? "warning"}>
+          {STATUS_LABEL[item.status] ?? item.status}
+        </Badge>
+      ),
+    },
+    {
+      header: "가입일",
+      key: "createdDate",
+      render: (item) => item.createdDate?.slice(0, 10) ?? "-",
+    },
     {
       header: "관리",
       key: "actions",
-      render: () => (
+      render: (item) => (
         <div className="flex gap-2">
-          <button className="text-blue-500 hover:underline">수정</button>
-          <button className="text-red-500 hover:underline">차단</button>
+          {item.status === "ACTIVE" ? (
+            <button
+              className="text-red-500 hover:underline text-sm"
+              onClick={() => handleStatusChange(item.id, "BANNED")}
+            >
+              차단
+            </button>
+          ) : (
+            <button
+              className="text-blue-500 hover:underline text-sm"
+              onClick={() => handleStatusChange(item.id, "ACTIVE")}
+            >
+              활성화
+            </button>
+          )}
         </div>
       ),
     },
@@ -64,17 +113,13 @@ export default function UserList() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-800 dark:text-white">회원 관리</h1>
-        <button className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700">
-          <Link
-            to="/users/create"
-            className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700"
-          >
-            <span>+ 회원 등록</span>
-          </Link>
-        </button>
+        <Link
+          to="/users/create"
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 font-medium text-white hover:bg-blue-700"
+        >
+          + 회원 등록
+        </Link>
       </div>
-      
-      {/* API로 받아온 실제 데이터 연동 */}
       <GenericTable data={userData} columns={columns} />
     </div>
   );

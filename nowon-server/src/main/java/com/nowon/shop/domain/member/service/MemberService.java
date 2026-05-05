@@ -3,6 +3,7 @@ package com.nowon.shop.domain.member.service;
 import com.nowon.shop.api.admin.dto.AdminMemberDTO;
 import com.nowon.shop.api.auth.dto.LoginRequestDTO;
 import com.nowon.shop.domain.member.entity.Member;
+import com.nowon.shop.domain.member.entity.MemberStatus;
 import com.nowon.shop.domain.member.repository.MemberRepository;
 import com.nowon.shop.global.exception.BusinessException;
 import com.nowon.shop.global.exception.ErrorCode;
@@ -46,9 +47,17 @@ public class MemberService {
                         .email(member.getEmail())
                         .name(member.getName())
                         .role(member.getRole())
+                        .status(member.getStatus())
                         .createdDate(member.getCreatedDate())
                         .build())
                 .toList();
+    }
+
+    @Transactional
+    public void updateMemberStatus(Long memberId, MemberStatus status) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        member.updateStatus(status);
     }
 
     public String login(LoginRequestDTO dto) {

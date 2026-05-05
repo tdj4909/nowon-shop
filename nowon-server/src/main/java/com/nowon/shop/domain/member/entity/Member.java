@@ -55,4 +55,9 @@ public class Member {
         this.role = role;
         this.status = (status != null) ? status : MemberStatus.ACTIVE;
     }
+
+    // 회원 상태 변경 (Setter 대신 의미 있는 메서드)
+    public void updateStatus(MemberStatus status) {
+        this.status = status;
+    }
 }
