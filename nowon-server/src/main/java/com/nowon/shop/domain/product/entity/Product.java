@@ -56,12 +56,17 @@ public class Product {
         this.status = (status != null) ? status : ProductStatus.SELL; // null 방지
     }
 
-    // 재고 감소 로직 (예시)
+    // 재고 차감
     public void removeStock(int quantity) {
         int restStock = this.stock - quantity;
         if (restStock < 0) {
-            throw new RuntimeException("재고가 부족합니다."); // 커스텀 예외로 바꾸면 더 좋음
+            throw new IllegalStateException("재고가 부족합니다. 현재 재고: " + this.stock);
         }
         this.stock = restStock;
+    }
+
+    // 재고 복구 (주문 취소 시 사용)
+    public void addStock(int quantity) {
+        this.stock += quantity;
     }
 }
