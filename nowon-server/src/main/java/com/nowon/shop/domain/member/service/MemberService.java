@@ -4,6 +4,8 @@ import com.nowon.shop.api.admin.dto.AdminMemberDTO;
 import com.nowon.shop.api.auth.dto.LoginRequestDTO;
 import com.nowon.shop.domain.member.entity.Member;
 import com.nowon.shop.domain.member.repository.MemberRepository;
+import com.nowon.shop.global.exception.BusinessException;
+import com.nowon.shop.global.exception.ErrorCode;
 import com.nowon.shop.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -11,24 +13,22 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class MemberService {
 
     private final MemberRepository memberRepository;
-    private final PasswordEncoder passwordEncoder; // 비밀번호 암호화 도구
+    private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional
     public void register(AdminMemberDTO dto) {
-        // 이메일 중복 체크
-        if(memberRepository.findByEmail(dto.getEmail()).isPresent()) {
-            throw new IllegalStateException("이미 존재하는 이메일입니다.");
+        if (memberRepository.findByEmail(dto.getEmail()).isPresent()) {
+            throw new BusinessException(ErrorCode.MEMBER_EMAIL_DUPLICATED);
         }
 
-        // 비밀번호 암호화 및 엔티티 생성
         Member member = Member.builder()
                 .email(dto.getEmail())
                 .name(dto.getName())
@@ -39,8 +39,6 @@ public class MemberService {
         memberRepository.save(member);
     }
 
-    // 전체 회원 목록 조회
-    @Transactional(readOnly = true)
     public List<AdminMemberDTO> findAllMembers() {
         return memberRepository.findAll().stream()
                 .map(member -> AdminMemberDTO.builder()
@@ -50,22 +48,17 @@ public class MemberService {
                         .role(member.getRole())
                         .createdDate(member.getCreatedDate())
                         .build())
-                .collect(Collectors.toList());
+                .toList();
     }
 
-    @Transactional(readOnly = true)
     public String login(LoginRequestDTO dto) {
-        // 이메일 존재 확인
         Member member = memberRepository.findByEmail(dto.getEmail())
-                .orElseThrow(() -> new RuntimeException("존재하지 않는 사용자입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
-        // 비밀번호 일치 확인 (암호화된 비번 비교)
         if (!passwordEncoder.matches(dto.getPassword(), member.getPassword())) {
-            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+            throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND); // 보안상 이메일/비번 오류를 동일 메시지로 처리
         }
 
-        // 토큰 생성 및 반환
         return jwtTokenProvider.createToken(member.getEmail(), member.getRole().name());
     }
-
 }

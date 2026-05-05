@@ -8,6 +8,8 @@ import com.nowon.shop.domain.order.entity.OrderStatus;
 import com.nowon.shop.domain.order.repository.OrderRepository;
 import com.nowon.shop.domain.product.entity.Product;
 import com.nowon.shop.domain.product.repository.ProductRepository;
+import com.nowon.shop.global.exception.BusinessException;
+import com.nowon.shop.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,11 +30,11 @@ public class OrderService {
     public Long createOrder(Long memberId, Long productId, int quantity) {
 
         Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         // 비관적 락으로 상품 조회 — 동시 주문 시 재고 정합성 보장
         Product product = productRepository.findByIdWithLock(productId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
         // 재고 차감 (Product 내부 로직에서 재고 부족 시 예외 발생)
         product.removeStock(quantity);
@@ -64,7 +66,7 @@ public class OrderService {
     @Transactional
     public void cancelOrder(Long orderId) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
 
         // 취소 가능 상태 검증은 Order 엔티티 내부에서 처리
         order.cancel();
@@ -79,7 +81,7 @@ public class OrderService {
     @Transactional
     public void updateOrderStatus(Long orderId, OrderStatus status) {
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
         order.updateStatus(status);
     }
 
@@ -91,7 +93,7 @@ public class OrderService {
     // 주문 상세 조회
     public Order getOrderDetail(Long orderId) {
         return orderRepository.findByIdWithItems(orderId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 주문입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
     }
 
     // 전체 주문 목록 조회 (어드민용)

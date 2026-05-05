@@ -4,15 +4,16 @@ import com.nowon.shop.api.admin.dto.AdminProductDTO;
 import com.nowon.shop.domain.product.entity.Product;
 import com.nowon.shop.domain.product.entity.ProductStatus;
 import com.nowon.shop.domain.product.repository.ProductRepository;
+import com.nowon.shop.global.exception.BusinessException;
+import com.nowon.shop.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class ProductService {
 
@@ -31,7 +32,6 @@ public class ProductService {
         return productRepository.save(product).getId();
     }
 
-    @Transactional(readOnly = true)
     public List<AdminProductDTO> findAllProductsForAdmin() {
         return productRepository.findAll().stream()
                 .map(p -> AdminProductDTO.builder()
@@ -45,6 +45,22 @@ public class ProductService {
                         .createdDate(p.getCreatedDate())
                         .lastModifiedDate(p.getLastModifiedDate())
                         .build())
-                .collect(Collectors.toList());
+                .toList();
+    }
+
+    public AdminProductDTO findProductForAdmin(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        return AdminProductDTO.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .category(product.getCategory())
+                .price(product.getPrice())
+                .stock(product.getStock())
+                .description(product.getDescription())
+                .status(product.getStatus())
+                .createdDate(product.getCreatedDate())
+                .lastModifiedDate(product.getLastModifiedDate())
+                .build();
     }
 }

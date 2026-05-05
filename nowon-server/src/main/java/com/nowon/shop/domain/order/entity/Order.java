@@ -1,6 +1,8 @@
 package com.nowon.shop.domain.order.entity;
 
 import com.nowon.shop.domain.member.entity.Member;
+import com.nowon.shop.global.exception.BusinessException;
+import com.nowon.shop.global.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Getter;
@@ -57,7 +59,7 @@ public class Order {
     // 주문 취소 (취소 가능 상태 검증 포함)
     public void cancel() {
         if (this.status == OrderStatus.SHIPPED || this.status == OrderStatus.DELIVERED) {
-            throw new IllegalStateException("배송 중이거나 배송 완료된 주문은 취소할 수 없습니다.");
+            throw new BusinessException(ErrorCode.ORDER_CANNOT_CANCEL);
         }
         this.status = OrderStatus.CANCELLED;
     }
