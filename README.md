@@ -2,6 +2,14 @@
 
 A full-stack e-commerce web application built as a portfolio project for backend developer job applications in Japan.
 
+## Live Demo
+
+| Service | URL |
+|---|---|
+| Customer Storefront | https://nowon-shop.vercel.app |
+| REST API | https://nowon-shop-production.up.railway.app |
+| API Docs (Swagger) | https://nowon-shop-production.up.railway.app/swagger-ui/index.html |
+
 ---
 
 ## Tech Stack
@@ -9,12 +17,14 @@ A full-stack e-commerce web application built as a portfolio project for backend
 ### Backend
 | Category | Technology |
 |---|---|
-| Language | Java 17 |
-| Framework | Spring Boot 3, Spring Security |
+| Language | Java 21 |
+| Framework | Spring Boot 4, Spring Security |
 | ORM | Spring Data JPA (Hibernate) |
 | Authentication | JWT |
-| Database | MySQL 8 |
+| Database | MySQL |
+| API Docs | SpringDoc OpenAPI (Swagger UI) |
 | Build | Gradle |
+| Deployment | Railway |
 
 ### Frontend
 | Category | Technology |
@@ -25,6 +35,7 @@ A full-stack e-commerce web application built as a portfolio project for backend
 | HTTP Client | Axios |
 | Routing | React Router v7 |
 | Build | Vite |
+| Deployment | Vercel |
 
 ---
 
@@ -43,10 +54,12 @@ nowon-shop/
 
 ### Customer Storefront (`nowon-user`)
 - Browse products without authentication
+- Keyword search and category filter (server-side)
+- Pagination (server-side, 8 items per page)
 - User registration and login (JWT-based)
-- Product detail page with quantity selector
+- Product detail page with quantity selector and real-time total price
 - Place orders
-- View personal order history
+- View and cancel personal order history
 
 ### Admin Dashboard (`nowon-admin`)
 - Secure login with role-based access control
@@ -62,7 +75,9 @@ nowon-shop/
 - Global exception handling (`@ControllerAdvice`)
 - Pessimistic locking (`PESSIMISTIC_WRITE`) to prevent overselling on concurrent orders
 - N+1 problem prevention with `JOIN FETCH`
+- Server-side search, category filter, and pagination using Spring Data `Pageable`
 - Order price snapshot — stores price at time of order, independent of future price changes
+- Swagger UI for interactive API documentation
 
 ---
 
@@ -74,34 +89,22 @@ When multiple users order the same product simultaneously, a race condition can 
 ### Order Price Snapshot
 `OrderItem.orderPrice` stores the product price at the time of purchase. This ensures order history remains accurate even if the product price is later updated.
 
+### Server-side Search and Pagination
+Product filtering and pagination are handled at the database level using JPQL with dynamic parameters and Spring Data `Pageable`, rather than in-memory filtering. This keeps performance consistent as the dataset grows.
+
 ### Security
 - Login errors return the same message regardless of whether the email or password is wrong, preventing account enumeration attacks.
 - Stack traces are never exposed to clients; all exceptions are handled centrally by `GlobalExceptionHandler`.
-
----
-
-## Development History
-
-| Phase | Description |
-|---|---|
-| 1. Database design | Designed schema for members, products, orders, order_items |
-| 2. Backend — domain layer | Implemented JPA entities, repositories, and service logic |
-| 3. Backend — auth | Integrated Spring Security with stateless JWT authentication |
-| 4. Backend — exception handling | Built global error handling with `ErrorCode`, `BusinessException`, `GlobalExceptionHandler` |
-| 5. Backend — concurrency | Applied pessimistic locking to prevent overselling under concurrent orders |
-| 6. Backend — testing | Wrote and passed 15 unit/integration tests |
-| 7. Admin dashboard | Built full CRUD UI for products, members, and orders using React + TailAdmin |
-| 8. Backend — user API | Added public product endpoints and user registration API |
-| 9. Customer storefront | Built storefront from scratch with React + Tailwind CSS (product browsing, ordering, order history) |
+- Swagger UI is available in all environments for demo purposes. In production, it would be disabled via Spring Profile configuration.
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
-- Java 17+
+- Java 21+
 - Node.js 18+
-- MySQL 8
+- MySQL
 
 ### Backend Setup
 
@@ -155,7 +158,8 @@ npm run dev
 ### Products
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| GET | `/api/products` | None | List all available products |
+| GET | `/api/products` | None | List products (search, filter, pagination) |
+| GET | `/api/products/categories` | None | List available categories |
 | GET | `/api/products/{id}` | None | Get product detail |
 | POST | `/api/admin/products` | ADMIN | Create product |
 | PUT | `/api/admin/products/{id}` | ADMIN | Update product |
@@ -169,6 +173,7 @@ npm run dev
 | PATCH | `/api/orders/{id}/cancel` | USER | Cancel an order |
 | GET | `/api/admin/orders` | ADMIN | List all orders |
 | PATCH | `/api/admin/orders/{id}/status` | ADMIN | Update order status |
+| PATCH | `/api/admin/orders/{id}/cancel` | ADMIN | Cancel order (admin) |
 
 ### Members
 | Method | Endpoint | Auth | Description |
@@ -176,3 +181,22 @@ npm run dev
 | POST | `/api/admin/members` | ADMIN | Create member |
 | GET | `/api/admin/members` | ADMIN | List all members |
 | PATCH | `/api/admin/members/{id}/status` | ADMIN | Block or activate member |
+
+---
+
+## Development History
+
+| Phase | Description |
+|---|---|
+| 1. Database design | Designed schema for members, products, orders, order_items |
+| 2. Backend — domain layer | Implemented JPA entities, repositories, and service logic |
+| 3. Backend — auth | Integrated Spring Security with stateless JWT authentication |
+| 4. Backend — exception handling | Built global error handling with `ErrorCode`, `BusinessException`, `GlobalExceptionHandler` |
+| 5. Backend — concurrency | Applied pessimistic locking to prevent overselling under concurrent orders |
+| 6. Backend — testing | Wrote and passed 15 unit/integration tests |
+| 7. Admin dashboard | Built full CRUD UI for products, members, and orders using React + TailAdmin |
+| 8. Backend — user API | Added public product endpoints and user registration API |
+| 9. Customer storefront | Built storefront from scratch with React + Tailwind CSS |
+| 10. Search & pagination | Moved filtering and pagination from frontend to database level |
+| 11. API documentation | Added Swagger UI with JWT auth support |
+| 12. Deployment | Deployed backend to Railway, frontend to Vercel |

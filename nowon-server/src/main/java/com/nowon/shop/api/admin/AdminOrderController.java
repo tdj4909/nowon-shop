@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Admin - Orders", description = "주문 관리 (ADMIN 권한 필요)")
+@Tag(name = "Admin — Orders", description = "Order management — ADMIN role required")
 @RestController
 @RequestMapping("/api/admin/orders")
 @RequiredArgsConstructor
@@ -19,7 +19,7 @@ public class AdminOrderController {
 
     private final OrderService orderService;
 
-    @Operation(summary = "전체 주문 목록 조회")
+    @Operation(summary = "List all orders")
     @GetMapping
     public ResponseEntity<List<AdminOrderDTO>> getAllOrders() {
         List<AdminOrderDTO> orders = orderService.getAllOrders().stream()
@@ -28,13 +28,13 @@ public class AdminOrderController {
         return ResponseEntity.ok(orders);
     }
 
-    @Operation(summary = "주문 상세 조회")
+    @Operation(summary = "Get order detail")
     @GetMapping("/{orderId}")
     public ResponseEntity<AdminOrderDTO> getOrderDetail(@PathVariable Long orderId) {
         return ResponseEntity.ok(AdminOrderDTO.from(orderService.getOrderDetail(orderId)));
     }
 
-    @Operation(summary = "주문 상태 변경", description = "PENDING → ORDER → DELIVERING → DELIVERED 순서로 변경")
+    @Operation(summary = "Update order status", description = "Progresses an order through statuses: PENDING → ORDER → DELIVERING → COMPLETE.")
     @PatchMapping("/{orderId}/status")
     public ResponseEntity<Void> updateOrderStatus(
             @PathVariable Long orderId,
@@ -44,7 +44,7 @@ public class AdminOrderController {
         return ResponseEntity.ok().build();
     }
 
-    @Operation(summary = "주문 취소 (어드민)")
+    @Operation(summary = "Cancel order")
     @PatchMapping("/{orderId}/cancel")
     public ResponseEntity<Void> cancelOrder(@PathVariable Long orderId) {
         orderService.cancelOrder(orderId);

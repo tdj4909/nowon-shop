@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "Admin - Members", description = "회원 관리 (ADMIN 권한 필요)")
+@Tag(name = "Admin — Members", description = "Member management — ADMIN role required")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin/members")
@@ -19,20 +19,20 @@ public class AdminMemberController {
 
     private final MemberService memberService;
 
-    @Operation(summary = "회원 등록 (어드민용)", description = "role을 직접 지정해서 회원 등록")
+    @Operation(summary = "Create member", description = "Creates a member with a manually specified role.")
     @PostMapping
     public ResponseEntity<String> register(@RequestBody AdminMemberDTO dto) {
         memberService.register(dto);
-        return ResponseEntity.ok("회원 등록이 완료되었습니다.");
+        return ResponseEntity.ok("Member created successfully.");
     }
 
-    @Operation(summary = "회원 목록 조회")
+    @Operation(summary = "List all members")
     @GetMapping
     public ResponseEntity<List<AdminMemberDTO>> list() {
         return ResponseEntity.ok(memberService.findAllMembers());
     }
 
-    @Operation(summary = "회원 상태 변경", description = "ACTIVE / BLOCKED / WITHDRAWN 중 하나로 변경")
+    @Operation(summary = "Update member status", description = "Changes a member's status to ACTIVE, BLOCKED, or WITHDRAWN.")
     @PatchMapping("/{memberId}/status")
     public ResponseEntity<Void> updateStatus(
             @PathVariable Long memberId,
