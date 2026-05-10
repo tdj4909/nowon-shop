@@ -80,6 +80,22 @@ When multiple users order the same product simultaneously, a race condition can 
 
 ---
 
+## Development History
+
+| Phase | Description |
+|---|---|
+| 1. Database design | Designed schema for members, products, orders, order_items |
+| 2. Backend — domain layer | Implemented JPA entities, repositories, and service logic |
+| 3. Backend — auth | Integrated Spring Security with stateless JWT authentication |
+| 4. Backend — exception handling | Built global error handling with `ErrorCode`, `BusinessException`, `GlobalExceptionHandler` |
+| 5. Backend — concurrency | Applied pessimistic locking to prevent overselling under concurrent orders |
+| 6. Backend — testing | Wrote and passed 15 unit/integration tests |
+| 7. Admin dashboard | Built full CRUD UI for products, members, and orders using React + TailAdmin |
+| 8. Backend — user API | Added public product endpoints and user registration API |
+| 9. Customer storefront | Built storefront from scratch with React + Tailwind CSS (product browsing, ordering, order history) |
+
+---
+
 ## Getting Started
 
 ### Prerequisites
