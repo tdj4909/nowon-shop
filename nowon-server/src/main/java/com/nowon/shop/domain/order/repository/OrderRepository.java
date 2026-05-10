@@ -10,8 +10,13 @@ import java.util.Optional;
 
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
-    // 특정 회원의 주문 목록 (최신순)
-    List<Order> findByMemberIdOrderByCreatedDateDesc(Long memberId);
+    // 특정 회원의 주문 목록 (최신순, N+1 문제 방지)
+    @Query("SELECT o FROM Order o " +
+            "JOIN FETCH o.orderItems oi " +
+            "JOIN FETCH oi.product " +
+            "WHERE o.member.id = :memberId " +
+            "ORDER BY o.createdDate DESC")
+    List<Order> findByMemberIdOrderByCreatedDateDesc(@Param("memberId") Long memberId);
 
     // 주문 상세 조회 시 OrderItem과 Product를 한 번에 조회 (N+1 문제 방지)
     @Query("SELECT o FROM Order o " +

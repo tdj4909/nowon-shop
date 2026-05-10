@@ -6,7 +6,6 @@ import com.nowon.shop.domain.order.service.OrderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,11 +21,10 @@ public class OrderController {
     // 주문 생성
     @PostMapping
     public ResponseEntity<Long> createOrder(
-            @AuthenticationPrincipal UserDetails userDetails,
+            @AuthenticationPrincipal String email,
             @RequestBody OrderCreateRequestDTO request
     ) {
-        // JWT에서 꺼낸 email로 memberId 조회
-        Long memberId = memberRepository.findByEmail(userDetails.getUsername())
+        Long memberId = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."))
                 .getId();
 
@@ -37,9 +35,9 @@ public class OrderController {
     // 내 주문 목록 조회
     @GetMapping
     public ResponseEntity<List<OrderResponseDTO>> getMyOrders(
-            @AuthenticationPrincipal UserDetails userDetails
+            @AuthenticationPrincipal String email
     ) {
-        Long memberId = memberRepository.findByEmail(userDetails.getUsername())
+        Long memberId = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."))
                 .getId();
 
