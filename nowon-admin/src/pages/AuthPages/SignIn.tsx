@@ -16,7 +16,7 @@ export default function Signin() {
 
     try {
       // 로그인 API 호출
-      const response = await axios.post("http://localhost:8080/api/auth/login", formData);
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/auth/login`, formData);
 
       // 응답받은 토큰 추출
       const { accessToken } = response.data;

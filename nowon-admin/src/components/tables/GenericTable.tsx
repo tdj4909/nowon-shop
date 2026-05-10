@@ -12,7 +12,7 @@ interface GenericTableProps<T> {
   columns: Column<T>[];
 }
 
-export default function GenericTable<T extends { id: string | number }>({
+export default function GenericTable<T>({
   data,
   columns,
 }: GenericTableProps<T>) {
@@ -35,8 +35,8 @@ export default function GenericTable<T extends { id: string | number }>({
           </TableHeader>
 
           <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-            {data.map((item) => (
-              <TableRow key={item.id}>
+            {data.map((item, index) => (
+              <TableRow key={index}>
                 {columns.map((col) => (
                   <TableCell key={String(col.key)} className="px-5 py-4 text-start text-theme-sm">
                     {/* render 함수가 있으면 사용하고, 없으면 기본 데이터 출력 */}
