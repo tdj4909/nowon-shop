@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { getProducts } from '../api/products'
+import { getProducts, getCategories } from '../api/products'
 import type { Product } from '../api/products'
 
 const PAGE_SIZE = 8
@@ -31,52 +31,55 @@ function ImagePlaceholder() {
 
 export default function ProductListPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [search, setSearch] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('전체')
-  const [page, setPage] = useState(1)
 
+  const [search, setSearch] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('')
+  const [page, setPage] = useState(0)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalElements, setTotalElements] = useState(0)
+
+  // 카테고리 목록은 최초 1회만 로드
   useEffect(() => {
-    getProducts()
-      .then((res) => setProducts(res.data))
-      .catch(() => setError('상품을 불러오는 데 실패했습니다.'))
-      .finally(() => setLoading(false))
+    getCategories().then((res) => setCategories(res.data))
   }, [])
 
-  // 검색어나 카테고리 바뀌면 첫 페이지로
-  useEffect(() => {
-    setPage(1)
-  }, [search, selectedCategory])
-
-  // 카테고리 목록 (중복 제거)
-  const categories = useMemo(() => {
-    const cats = products.map((p) => p.category).filter(Boolean)
-    return ['전체', ...Array.from(new Set(cats))]
-  }, [products])
-
-  // 필터링
-  const filtered = useMemo(() => {
-    return products.filter((p) => {
-      const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
-      const matchCategory = selectedCategory === '전체' || p.category === selectedCategory
-      return matchSearch && matchCategory
+  const fetchProducts = useCallback(() => {
+    setLoading(true)
+    getProducts({
+      keyword: search || undefined,
+      category: selectedCategory || undefined,
+      page,
+      size: PAGE_SIZE,
     })
-  }, [products, search, selectedCategory])
+      .then((res) => {
+        setProducts(res.data.content)
+        setTotalPages(res.data.totalPages)
+        setTotalElements(res.data.totalElements)
+      })
+      .catch(() => setError('상품을 불러오는 데 실패했습니다.'))
+      .finally(() => setLoading(false))
+  }, [search, selectedCategory, page])
 
-  // 페이지네이션
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  useEffect(() => {
+    fetchProducts()
+  }, [fetchProducts])
 
-  if (loading) {
-    return (
-      <main className="max-w-5xl mx-auto px-4 py-10">
-        <div className="h-8 bg-gray-100 rounded w-32 mb-8 animate-pulse" />
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
-          {Array.from({ length: PAGE_SIZE }).map((_, i) => <ProductSkeleton key={i} />)}
-        </div>
-      </main>
-    )
+  // 검색어 입력 시 디바운스 (0.4초)
+  const [searchInput, setSearchInput] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput)
+      setPage(0)
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  const handleCategoryChange = (cat: string) => {
+    setSelectedCategory(cat)
+    setPage(0)
   }
 
   if (error) {
@@ -95,7 +98,7 @@ export default function ProductListPage() {
       {/* 헤더 */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-        <span className="text-sm text-gray-400">{filtered.length}개 상품</span>
+        <span className="text-sm text-gray-400">총 {totalElements}개 상품</span>
       </div>
 
       {/* 검색 바 */}
@@ -105,14 +108,14 @@ export default function ProductListPage() {
         </svg>
         <input
           type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
           placeholder="상품명 검색..."
           className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-gray-50 focus:bg-white transition-colors"
         />
-        {search && (
+        {searchInput && (
           <button
-            onClick={() => setSearch('')}
+            onClick={() => { setSearchInput(''); setSearch(''); setPage(0) }}
             className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -123,24 +126,36 @@ export default function ProductListPage() {
       </div>
 
       {/* 카테고리 필터 */}
-      <div className="flex gap-2 flex-wrap mb-8">
-        {categories.map((cat) => (
+      {categories.length > 0 && (
+        <div className="flex gap-2 flex-wrap mb-8">
           <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
+            onClick={() => handleCategoryChange('')}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              selectedCategory === cat
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              selectedCategory === '' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
-            {cat}
+            전체
           </button>
-        ))}
-      </div>
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => handleCategoryChange(cat)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                selectedCategory === cat ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 상품 그리드 */}
-      {paginated.length === 0 ? (
+      {loading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
+          {Array.from({ length: PAGE_SIZE }).map((_, i) => <ProductSkeleton key={i} />)}
+        </div>
+      ) : products.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[30vh] gap-3">
           <svg className="w-16 h-16 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10" />
@@ -149,7 +164,7 @@ export default function ProductListPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
-          {paginated.map((product) => (
+          {products.map((product) => (
             <Link
               to={`/products/${product.id}`}
               key={product.id}
@@ -179,8 +194,8 @@ export default function ProductListPage() {
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-1 mt-10">
           <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={page === 0}
             className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -190,19 +205,17 @@ export default function ProductListPage() {
           {Array.from({ length: totalPages }).map((_, i) => (
             <button
               key={i}
-              onClick={() => setPage(i + 1)}
+              onClick={() => setPage(i)}
               className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${
-                page === i + 1
-                  ? 'bg-indigo-600 text-white'
-                  : 'border border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600'
+                page === i ? 'bg-indigo-600 text-white' : 'border border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600'
               }`}
             >
               {i + 1}
             </button>
           ))}
           <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
+            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+            disabled={page === totalPages - 1}
             className="w-9 h-9 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-indigo-300 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

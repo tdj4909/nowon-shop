@@ -5,11 +5,17 @@ import com.nowon.shop.api.user.dto.UserProductDTO;
 import com.nowon.shop.domain.product.entity.Product;
 import com.nowon.shop.domain.product.entity.ProductStatus;
 import com.nowon.shop.domain.product.repository.ProductRepository;
+import com.nowon.shop.global.common.PageResponse;
 import com.nowon.shop.global.exception.BusinessException;
 import com.nowon.shop.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -22,11 +28,23 @@ public class ProductService {
 
     // ===== 유저용 API =====
 
-    public List<UserProductDTO> findAllProductsForUser() {
-        return productRepository.findAll().stream()
-                .filter(p -> p.getStatus() == ProductStatus.SELL)
-                .map(UserProductDTO::from)
-                .toList();
+    public PageResponse<UserProductDTO> findProductsForUser(
+            String keyword, String category, int page, int size
+    ) {
+        // 빈 문자열은 null로 처리 (JPQL에서 :keyword IS NULL 조건 활용)
+        String keywordParam = StringUtils.hasText(keyword) ? keyword : null;
+        String categoryParam = StringUtils.hasText(category) ? category : null;
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdDate"));
+        Page<UserProductDTO> result = productRepository
+                .findByStatusAndFilter(ProductStatus.SELL, keywordParam, categoryParam, pageable)
+                .map(UserProductDTO::from);
+
+        return new PageResponse<>(result);
+    }
+
+    public List<String> findCategoriesForUser() {
+        return productRepository.findDistinctCategoriesByStatus(ProductStatus.SELL);
     }
 
     public UserProductDTO findProductForUser(Long productId) {
