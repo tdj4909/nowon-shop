@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const instance = axios.create({
-  baseURL: "http://localhost:8080",
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
 });
 
 // 요청 인터셉터: 모든 API 요청 직전에 실행됨
