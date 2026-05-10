@@ -43,10 +43,11 @@ public class SecurityConfig {
                 )
                 // 권한 허용 범위
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll() // 로그인/회원가입은 허용
-                        .requestMatchers("/api/products/**").permitAll() // 유저용 상품 조회는 인증 없이 허용
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN") // 관리자 API는 ADMIN 권한 필수
-                        .requestMatchers("/api/orders/**").hasRole("USER") // 주문 API는 USER 권한 필수
+                        .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/products/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll() // Swagger UI 허용
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/orders/**").hasRole("USER")
                         .anyRequest().authenticated()
                 )
                 .formLogin(AbstractHttpConfigurer::disable)
