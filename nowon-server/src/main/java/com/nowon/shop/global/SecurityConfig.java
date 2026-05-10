@@ -62,7 +62,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("http://localhost:5173", "http://localhost:5174", "https://nowon-shop.vercel.app", "https://*.vercel.app"));
+        config.setAllowedOriginPatterns(List.of("http://localhost:5173", "http://localhost:5174", "https://nowon-shop.vercel.app", "https://nowon-shop-2q48.vercel.app", "https://*.vercel.app"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true); // 쿠키나 인증 헤더 허용 시 필요
