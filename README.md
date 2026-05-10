@@ -1,175 +1,162 @@
-# 🛒 Nowon Shop
+# Nowon Shop
 
-React와 Spring Boot를 기반으로 한 쇼핑몰 통합 관리 시스템입니다.
-유저 쇼핑몰(`nowon-user`)과 관리자 대시보드(`nowon-admin`), REST API 서버(`nowon-server`)로 구성된 멀티 모듈 프로젝트입니다.
+A full-stack e-commerce web application built as a portfolio project for backend developer job applications in Japan.
 
 ---
 
-## 🛠 Tech Stack
-
-### Frontend
-- **Framework**: React 18
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Routing**: React Router
-- **HTTP**: Axios (인터셉터 기반 JWT 자동 첨부)
-- **UI**: TailAdmin 기반 커스텀 컴포넌트
+## Tech Stack
 
 ### Backend
-- **Framework**: Spring Boot 3.4.x
-- **Language**: Java 17
-- **Database**: MySQL 8.0
-- **ORM**: Spring Data JPA + JPA Auditing
-- **Security**: Spring Security + JWT (Stateless)
-- **Library**: Lombok, Validation
+| Category | Technology |
+|---|---|
+| Language | Java 17 |
+| Framework | Spring Boot 3, Spring Security |
+| ORM | Spring Data JPA (Hibernate) |
+| Authentication | JWT |
+| Database | MySQL 8 |
+| Build | Gradle |
+
+### Frontend
+| Category | Technology |
+|---|---|
+| Language | TypeScript |
+| Framework | React 19 |
+| Styling | Tailwind CSS v4 |
+| HTTP Client | Axios |
+| Routing | React Router v7 |
+| Build | Vite |
 
 ---
 
-## ✨ Key Features
-
-### 🔐 인증 / 권한
-- JWT 기반 Stateless 인증
-- `USER` / `ADMIN` 권한 분리 (RBAC)
-- Spring Security 필터 체인으로 API별 접근 제어
-- PrivateRoute로 비로그인 접근 차단 (프론트엔드)
-
-### 📦 상품 관리
-- 상품 등록 / 목록 조회 / 수정 / 삭제
-- 재고 상태(`SELL` / `SOLD_OUT` / `HIDE`) Enum 관리
-- `update()` 도메인 메서드로 Setter 없이 상품 정보 변경
-- JPA Auditing으로 등록일 / 수정일 자동 기록
-
-### 👥 회원 관리
-- 회원 등록 / 목록 조회
-- 회원 상태(`ACTIVE` / `BANNED` / `WITHDRAWN`) Enum 관리
-- 어드민에서 회원 차단 / 활성화 처리
-- BCrypt 패스워드 암호화
-
-### 🧾 주문 관리
-- 상품 주문 생성 / 취소
-- 주문 상태(`PENDING` → `PAID` → `SHIPPED` → `DELIVERED` / `CANCELLED`) 흐름 관리
-- **비관적 락(Pessimistic Lock)** 으로 동시 주문 시 재고 정합성 보장
-- 주문 취소 시 재고 자동 복구 및 상태 검증
-- `OrderItem`에 주문 당시 가격 별도 저장 (상품 가격 변동과 무관하게 주문 기록 보존)
-- `JOIN FETCH`로 N+1 문제 방지
-
-### 🛡 예외 처리
-- `ErrorCode` Enum으로 에러 코드 중앙 관리
-- `BusinessException` 커스텀 예외로 도메인 오류 표현
-- `@ControllerAdvice` 기반 `GlobalExceptionHandler`로 예외 일괄 처리
-- `ApiResponse<T>` 공통 응답 포맷으로 성공/실패 응답 통일
-
----
-
-## 🗂 프로젝트 구조
+## Project Structure
 
 ```
 nowon-shop/
-├── nowon-admin     # 관리자 대시보드 (React + TypeScript)
-├── nowon-user      # 유저 쇼핑몰 (React + TypeScript)
-└── nowon-server    # REST API 서버 (Spring Boot)
-    └── src/main/java/com/nowon/shop/
-        ├── api/
-        │   ├── admin/          # 관리자 API (상품, 회원, 주문)
-        │   ├── user/           # 유저 API (주문)
-        │   └── auth/           # 인증 API (로그인)
-        ├── domain/
-        │   ├── member/         # 회원 도메인
-        │   ├── product/        # 상품 도메인
-        │   └── order/          # 주문 도메인
-        └── global/
-            ├── common/         # 공통 응답 포맷 (ApiResponse)
-            ├── exception/      # 예외 처리 (ErrorCode, BusinessException, GlobalExceptionHandler)
-            └── security/       # JWT 필터 / Security 설정
+├── nowon-server   # Spring Boot REST API (port 8080)
+├── nowon-admin    # Admin dashboard — React + TypeScript (port 5173)
+└── nowon-user     # Customer storefront — React + TypeScript (port 5174)
 ```
 
 ---
 
-## 🚀 시작하기
+## Features
 
-### 사전 준비
-- Java 17
+### Customer Storefront (`nowon-user`)
+- Browse products without authentication
+- User registration and login (JWT-based)
+- Product detail page with quantity selector
+- Place orders
+- View personal order history
+
+### Admin Dashboard (`nowon-admin`)
+- Secure login with role-based access control
+- Dashboard with summary cards and recent orders
+- Product management — create, read, update, delete
+- Member management — list, block, activate
+- Order management — status update, cancel
+
+### Backend API (`nowon-server`)
+- RESTful API with consistent response format (`ApiResponse<T>`)
+- JWT authentication with stateless session
+- Role-based authorization (`ROLE_USER`, `ROLE_ADMIN`)
+- Global exception handling (`@ControllerAdvice`)
+- Pessimistic locking (`PESSIMISTIC_WRITE`) to prevent overselling on concurrent orders
+- N+1 problem prevention with `JOIN FETCH`
+- Order price snapshot — stores price at time of order, independent of future price changes
+
+---
+
+## Key Design Decisions
+
+### Pessimistic Locking for Inventory
+When multiple users order the same product simultaneously, a race condition can cause stock to go negative. This project uses `PESSIMISTIC_WRITE` lock on product retrieval during order creation to serialize concurrent requests and guarantee stock consistency.
+
+### Order Price Snapshot
+`OrderItem.orderPrice` stores the product price at the time of purchase. This ensures order history remains accurate even if the product price is later updated.
+
+### Security
+- Login errors return the same message regardless of whether the email or password is wrong, preventing account enumeration attacks.
+- Stack traces are never exposed to clients; all exceptions are handled centrally by `GlobalExceptionHandler`.
+
+---
+
+## Getting Started
+
+### Prerequisites
+- Java 17+
 - Node.js 18+
-- MySQL 8.0
+- MySQL 8
 
-### Backend 실행
+### Backend Setup
+
+1. Create a MySQL database:
+```sql
+CREATE DATABASE nowon_shop;
+```
+
+2. Copy and configure the application settings:
 ```bash
-# 1. MySQL에 데이터베이스 생성
-CREATE DATABASE shop;
+cp nowon-server/src/main/resources/application.yaml.sample \
+   nowon-server/src/main/resources/application.yaml
+```
 
-# 2. 설정 파일 생성
-# nowon-server/src/main/resources/application.yaml.sample 복사 후
-# application.yaml 생성하여 DB 정보 입력
+3. Edit `application.yaml` with your database credentials and a JWT secret (32+ characters).
 
-# 3. 서버 실행
+4. Run the server:
+```bash
+cd nowon-server
 ./gradlew bootRun
 ```
 
-### Frontend 실행
+### Frontend Setup
+
+**Admin dashboard**
 ```bash
-# 관리자 대시보드
 cd nowon-admin
 npm install
 npm run dev
+# → http://localhost:5173
+```
 
-# 유저 쇼핑몰
+**Customer storefront**
+```bash
 cd nowon-user
 npm install
 npm run dev
+# → http://localhost:5174
 ```
 
 ---
 
-## 📅 개발 히스토리
+## API Endpoints
 
-### 2026-05-05
-- **[FRONT-ADMIN]**: 어드민 화면 완성
-  - PrivateRoute 적용 (비로그인 접근 차단)
-  - 주문 목록 API 연동 및 상태 변경 / 취소 기능 구현
-  - 상품 수정 / 삭제 기능 구현
-  - 회원 차단 / 활성화 기능 구현
-- **[SERVER]**: 예외 처리 일원화 및 공통 응답 포맷 적용
-  - `ErrorCode` Enum, `BusinessException`, `GlobalExceptionHandler` 도입
-  - `ApiResponse<T>` 공통 응답 포맷 적용
-  - 서비스 레이어 전체 예외 교체 및 트랜잭션 패턴 개선
-- **[SERVER]**: 상품 수정 / 삭제 API 추가
-- **[SERVER]**: 회원 상태 변경 API 추가
-- **[TEST]**: 서비스 레이어 단위 테스트 15개 작성
-  - `ProductTest`: 재고 차감 / 복구 / 부족 예외 검증
-  - `MemberServiceTest`: 회원가입 / 로그인 / 중복 이메일 검증
-  - `OrderServiceTest`: 주문 생성 / 취소 / 상태변경 / 재고 복구 검증
+### Auth
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/auth/register` | None | Register a new user |
+| POST | `/api/auth/login` | None | Login and receive JWT |
 
-### 2026-05-05 (오전)
-- **[SERVER]**: 주문(Order) 도메인 구축
-  - `Order` / `OrderItem` / `OrderStatus` 엔티티 설계
-  - 비관적 락(`PESSIMISTIC_WRITE`)으로 재고 동시성 문제 처리
-  - `JOIN FETCH`로 N+1 문제 방지
-  - 주문 생성 / 취소 / 상태 변경 API 구현
-  - 어드민용(`/api/admin/orders`), 유저용(`/api/orders`) API 분리
+### Products
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| GET | `/api/products` | None | List all available products |
+| GET | `/api/products/{id}` | None | Get product detail |
+| POST | `/api/admin/products` | ADMIN | Create product |
+| PUT | `/api/admin/products/{id}` | ADMIN | Update product |
+| DELETE | `/api/admin/products/{id}` | ADMIN | Delete product |
 
-### 2026-04-22
-- **[FRONT-ADMIN]**: 상품 등록, 상품 목록 수정
-- **[SERVER]**: 상품 등록, 상품 목록 API 구현
+### Orders
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/orders` | USER | Place an order |
+| GET | `/api/orders` | USER | Get my orders |
+| PATCH | `/api/orders/{id}/cancel` | USER | Cancel an order |
+| GET | `/api/admin/orders` | ADMIN | List all orders |
+| PATCH | `/api/admin/orders/{id}/status` | ADMIN | Update order status |
 
-### 2026-04-16
-- **[FRONT-ADMIN]**: JWT 적용
-- **[SERVER]**: JWT 구현
-
-### 2026-04-15
-- **[FRONT-ADMIN]**: 회원 등록, 회원 목록 수정
-- **[SERVER]**: 회원 등록, 회원 목록 API 구현
-
-### 2026-04-14
-- **[SERVER]**: 상품(Product) 및 회원(Member) 도메인 구축
-- **[DOCS]**: `application.yaml.sample` 구조 설계 및 README 작성
-
-### 2026-04-13
-- **[FRONT-ADMIN]**: TailAdmin 기반 레이아웃 통합, 공통 제네릭 테이블 및 등록 폼 UI 제작
-
-### 2026-04-06
-- **[START]**: 프로젝트 초기 기획 및 아키텍처 설계
-
----
-
-## ⚖️ 저작권 및 출처 명시
-본 프로젝트는 학습 목적으로 [TailAdmin](https://github.com/TailAdmin/free-react-tailwind-admin-dashboard) 오픈소스 템플릿을 기반으로 제작되었습니다. 기초 레이아웃과 UI 시스템을 활용하였으며, 백엔드 API 연동, 데이터베이스 설계 및 비즈니스 로직은 직접 개발하였습니다.
+### Members
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/admin/members` | ADMIN | Create member |
+| GET | `/api/admin/members` | ADMIN | List all members |
+| PATCH | `/api/admin/members/{id}/status` | ADMIN | Block or activate member |
