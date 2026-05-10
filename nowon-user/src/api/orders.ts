@@ -21,3 +21,6 @@ export const createOrder = (productId: number, quantity: number) =>
 
 export const getMyOrders = () =>
   api.get<Order[]>('/api/orders')
+
+export const cancelOrder = (orderId: number) =>
+  api.patch(`/api/orders/${orderId}/cancel`)

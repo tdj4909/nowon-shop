@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getMyOrders } from '../api/orders'
+import { getMyOrders, cancelOrder } from '../api/orders'
 import type { Order } from '../api/orders'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -11,17 +11,45 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   CANCEL:     { label: '취소됨',   color: 'bg-red-100 text-red-600' },
 }
 
+const CANCELLABLE = ['PENDING', 'ORDER']
+
 export default function MyOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [cancellingId, setCancellingId] = useState<number | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => {
+    fetchOrders()
+  }, [])
+
+  const fetchOrders = () => {
+    setLoading(true)
     getMyOrders()
       .then((res) => setOrders(res.data))
       .catch(() => setError('주문 내역을 불러오는 데 실패했습니다.'))
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 2500)
+  }
+
+  const handleCancel = async (orderId: number) => {
+    if (!confirm('주문을 취소하시겠습니까?')) return
+    setCancellingId(orderId)
+    try {
+      await cancelOrder(orderId)
+      showToast('주문이 취소되었습니다.', 'success')
+      fetchOrders()
+    } catch {
+      showToast('주문 취소에 실패했습니다.', 'error')
+    } finally {
+      setCancellingId(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -56,10 +84,19 @@ export default function MyOrdersPage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
+      {toast && (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl text-sm font-medium shadow-lg text-white z-50 ${
+          toast.type === 'success' ? 'bg-gray-900' : 'bg-red-500'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-900">내 주문 내역</h1>
         <span className="text-sm text-gray-400">{orders.length}건</span>
       </div>
+
       {orders.length === 0 ? (
         <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
           <svg className="w-16 h-16 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,17 +108,29 @@ export default function MyOrdersPage() {
         <div className="space-y-4">
           {orders.map((order) => {
             const statusCfg = STATUS_CONFIG[order.status] ?? { label: order.status, color: 'bg-gray-100 text-gray-600' }
+            const canCancel = CANCELLABLE.includes(order.status)
             return (
               <div key={order.orderId} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
                 {/* 헤더 */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-start justify-between mb-4">
                   <div>
                     <p className="text-xs text-gray-400 mb-0.5">주문번호 #{order.orderId}</p>
                     <p className="text-xs text-gray-400">{order.createdDate?.slice(0, 10)}</p>
                   </div>
-                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${statusCfg.color}`}>
-                    {statusCfg.label}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs font-semibold px-3 py-1 rounded-full ${statusCfg.color}`}>
+                      {statusCfg.label}
+                    </span>
+                    {canCancel && (
+                      <button
+                        onClick={() => handleCancel(order.orderId)}
+                        disabled={cancellingId === order.orderId}
+                        className="text-xs text-gray-400 hover:text-red-500 border border-gray-200 hover:border-red-300 px-2.5 py-1 rounded-full transition-colors disabled:opacity-40"
+                      >
+                        {cancellingId === order.orderId ? '취소 중...' : '취소'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* 주문 상품 목록 */}
