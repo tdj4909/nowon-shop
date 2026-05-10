@@ -1,6 +1,7 @@
 package com.nowon.shop.api.auth.controller;
 
 import com.nowon.shop.api.auth.dto.LoginRequestDTO;
+import com.nowon.shop.api.auth.dto.RegisterRequestDTO;
 import com.nowon.shop.domain.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,12 @@ import java.util.Map;
 public class AuthController {
 
     private final MemberService memberService;
+
+    @PostMapping("/register")
+    public ResponseEntity<Void> register(@RequestBody RegisterRequestDTO dto) {
+        memberService.registerUser(dto);
+        return ResponseEntity.ok().build();
+    }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequestDTO dto) {

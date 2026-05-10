@@ -1,6 +1,7 @@
 package com.nowon.shop.domain.product.service;
 
 import com.nowon.shop.api.admin.dto.AdminProductDTO;
+import com.nowon.shop.api.user.dto.UserProductDTO;
 import com.nowon.shop.domain.product.entity.Product;
 import com.nowon.shop.domain.product.entity.ProductStatus;
 import com.nowon.shop.domain.product.repository.ProductRepository;
@@ -18,6 +19,26 @@ import java.util.List;
 public class ProductService {
 
     private final ProductRepository productRepository;
+
+    // ===== 유저용 API =====
+
+    public List<UserProductDTO> findAllProductsForUser() {
+        return productRepository.findAll().stream()
+                .filter(p -> p.getStatus() == ProductStatus.SELL)
+                .map(UserProductDTO::from)
+                .toList();
+    }
+
+    public UserProductDTO findProductForUser(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        if (product.getStatus() != ProductStatus.SELL) {
+            throw new BusinessException(ErrorCode.PRODUCT_NOT_FOUND);
+        }
+        return UserProductDTO.from(product);
+    }
+
+    // ===== 어드민용 API =====
 
     @Transactional
     public Long saveProductForAdmin(AdminProductDTO dto) {

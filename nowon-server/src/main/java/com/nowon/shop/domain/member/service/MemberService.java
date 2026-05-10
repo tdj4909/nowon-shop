@@ -2,8 +2,10 @@ package com.nowon.shop.domain.member.service;
 
 import com.nowon.shop.api.admin.dto.AdminMemberDTO;
 import com.nowon.shop.api.auth.dto.LoginRequestDTO;
+import com.nowon.shop.api.auth.dto.RegisterRequestDTO;
 import com.nowon.shop.domain.member.entity.Member;
 import com.nowon.shop.domain.member.entity.MemberStatus;
+import com.nowon.shop.domain.member.entity.Role;
 import com.nowon.shop.domain.member.repository.MemberRepository;
 import com.nowon.shop.global.exception.BusinessException;
 import com.nowon.shop.global.exception.ErrorCode;
@@ -24,6 +26,24 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
+    // 유저 회원가입 (role 고정: USER)
+    @Transactional
+    public void registerUser(RegisterRequestDTO dto) {
+        if (memberRepository.findByEmail(dto.getEmail()).isPresent()) {
+            throw new BusinessException(ErrorCode.MEMBER_EMAIL_DUPLICATED);
+        }
+
+        Member member = Member.builder()
+                .email(dto.getEmail())
+                .name(dto.getName())
+                .password(passwordEncoder.encode(dto.getPassword()))
+                .role(Role.USER)
+                .build();
+
+        memberRepository.save(member);
+    }
+
+    // 어드민용 회원 등록 (role 직접 지정)
     @Transactional
     public void register(AdminMemberDTO dto) {
         if (memberRepository.findByEmail(dto.getEmail()).isPresent()) {
