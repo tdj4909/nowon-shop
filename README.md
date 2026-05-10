@@ -7,6 +7,7 @@ A full-stack e-commerce web application built as a portfolio project for backend
 | Service | URL |
 |---|---|
 | Customer Storefront | https://nowon-shop.vercel.app |
+| Admin Dashboard | https://nowon-shop-2q48.vercel.app |
 | REST API | https://nowon-shop-production.up.railway.app |
 | API Docs (Swagger) | https://nowon-shop-production.up.railway.app/swagger-ui/index.html |
 
