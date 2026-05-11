@@ -18,7 +18,20 @@ function ProductSkeleton() {
   )
 }
 
-function ImagePlaceholder() {
+function ProductImage({ imageUrl, name }: { imageUrl: string | null; name: string }) {
+  const [imgError, setImgError] = useState(false)
+
+  if (imageUrl && !imgError) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        onError={() => setImgError(true)}
+        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+      />
+    )
+  }
+
   return (
     <div className="bg-gradient-to-br from-gray-50 to-gray-100 h-48 flex flex-col items-center justify-center gap-2 group-hover:from-indigo-50 group-hover:to-indigo-100 transition-colors duration-300">
       <svg className="w-10 h-10 text-gray-300 group-hover:text-indigo-300 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -41,7 +54,6 @@ export default function ProductListPage() {
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
 
-  // 카테고리 목록은 최초 1회만 로드
   useEffect(() => {
     getCategories().then((res) => setCategories(res.data))
   }, [])
@@ -67,7 +79,6 @@ export default function ProductListPage() {
     fetchProducts()
   }, [fetchProducts])
 
-  // 검색어 입력 시 디바운스 (0.4초)
   const [searchInput, setSearchInput] = useState('')
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -95,13 +106,11 @@ export default function ProductListPage() {
 
   return (
     <main className="max-w-5xl mx-auto px-4 py-10">
-      {/* 헤더 */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Products</h1>
         <span className="text-sm text-gray-400">총 {totalElements}개 상품</span>
       </div>
 
-      {/* 검색 바 */}
       <div className="relative mb-4">
         <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -125,7 +134,6 @@ export default function ProductListPage() {
         )}
       </div>
 
-      {/* 카테고리 필터 */}
       {categories.length > 0 && (
         <div className="flex gap-2 flex-wrap mb-8">
           <button
@@ -150,7 +158,6 @@ export default function ProductListPage() {
         </div>
       )}
 
-      {/* 상품 그리드 */}
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
           {Array.from({ length: PAGE_SIZE }).map((_, i) => <ProductSkeleton key={i} />)}
@@ -171,7 +178,7 @@ export default function ProductListPage() {
               className="group border border-gray-100 rounded-2xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 bg-white"
             >
               <div className="relative overflow-hidden">
-                <ImagePlaceholder />
+                <ProductImage imageUrl={product.imageUrl} name={product.name} />
                 {product.stock === 0 && (
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                     <span className="text-white text-sm font-semibold tracking-wider">SOLD OUT</span>
@@ -190,7 +197,6 @@ export default function ProductListPage() {
         </div>
       )}
 
-      {/* 페이지네이션 */}
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-1 mt-10">
           <button

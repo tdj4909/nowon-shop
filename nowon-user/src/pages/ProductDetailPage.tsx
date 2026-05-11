@@ -17,6 +17,35 @@ function Toast({ message, type }: { message: string; type: ToastType }) {
   )
 }
 
+function ProductDetailImage({ imageUrl, name, isSoldOut }: { imageUrl: string | null; name: string; isSoldOut: boolean }) {
+  const [imgError, setImgError] = useState(false)
+
+  return (
+    <div className="relative rounded-2xl overflow-hidden h-72 mb-10 bg-gradient-to-br from-gray-50 to-gray-100">
+      {imageUrl && !imgError ? (
+        <img
+          src={imageUrl}
+          alt={name}
+          onError={() => setImgError(true)}
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+          <svg className="w-16 h-16 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10" />
+          </svg>
+          <span className="text-sm text-gray-300">No Image</span>
+        </div>
+      )}
+      {isSoldOut && (
+        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+          <span className="text-white text-lg font-bold tracking-widest">SOLD OUT</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
   const [product, setProduct] = useState<Product | null>(null)
@@ -101,18 +130,7 @@ export default function ProductDetailPage() {
         목록으로
       </button>
 
-      {/* 이미지 영역 */}
-      <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl h-72 flex flex-col items-center justify-center gap-2 mb-10 relative overflow-hidden">
-        <svg className="w-16 h-16 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10" />
-        </svg>
-        <span className="text-sm text-gray-300">No Image</span>
-        {isSoldOut && (
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-            <span className="text-white text-lg font-bold tracking-widest">SOLD OUT</span>
-          </div>
-        )}
-      </div>
+      <ProductDetailImage imageUrl={product.imageUrl} name={product.name} isSoldOut={isSoldOut} />
 
       {/* 상품 정보 */}
       <div className="space-y-2 mb-8">

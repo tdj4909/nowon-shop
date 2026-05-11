@@ -7,6 +7,7 @@ export interface Product {
   price: number
   stock: number
   description: string
+  imageUrl: string | null
   status: 'SELL' | 'SOLD_OUT' | 'HIDDEN'
 }
 
