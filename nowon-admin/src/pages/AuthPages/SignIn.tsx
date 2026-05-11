@@ -2,6 +2,16 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import axios from "axios";
 
+// JWT payload를 디코딩해서 role을 꺼내는 함수
+function getRoleFromToken(token: string): string | null {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.role ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export default function Signin() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -15,17 +25,22 @@ export default function Signin() {
     e.preventDefault();
 
     try {
-      // 로그인 API 호출
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/auth/login`, formData);
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL || "http://localhost:8080"}/api/auth/login`,
+        formData
+      );
 
-      // 응답받은 토큰 추출
       const { accessToken } = response.data;
+      const role = getRoleFromToken(accessToken);
 
-      // 로컬 스토리지에 토큰 저장
+      // ADMIN이 아니면 로그인 거부
+      if (role !== "ADMIN") {
+        alert("관리자 계정으로만 로그인할 수 있습니다.");
+        return;
+      }
+
       localStorage.setItem("accessToken", accessToken);
-
-      alert("로그인에 성공했습니다!");
-      navigate("/"); // 메인 페이지로 이동
+      navigate("/");
     } catch (error: any) {
       console.error("로그인 에러:", error);
       alert(error.response?.data?.message || "아이디 또는 비밀번호가 일치하지 않습니다.");
@@ -35,7 +50,7 @@ export default function Signin() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-gray-900">
       <form onSubmit={handleSubmit} className="w-full max-w-md rounded-lg bg-white p-8 shadow-md dark:bg-gray-800">
-        <h2 className="mb-6 text-2xl font-bold text-center">로그인</h2>
+        <h2 className="mb-6 text-2xl font-bold text-center">관리자 로그인</h2>
         <div className="space-y-4">
           <input
             type="email"
