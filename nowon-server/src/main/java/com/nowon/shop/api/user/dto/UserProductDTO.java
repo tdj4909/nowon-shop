@@ -15,6 +15,7 @@ public class UserProductDTO {
     private Long price;
     private Integer stock;
     private String description;
+    private String imageUrl;
     private ProductStatus status;
 
     public static UserProductDTO from(Product product) {
@@ -25,6 +26,7 @@ public class UserProductDTO {
                 .price(product.getPrice())
                 .stock(product.getStock())
                 .description(product.getDescription())
+                .imageUrl(product.getImageUrl())
                 .status(product.getStatus())
                 .build();
     }

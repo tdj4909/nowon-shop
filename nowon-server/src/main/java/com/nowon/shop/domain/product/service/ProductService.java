@@ -31,7 +31,6 @@ public class ProductService {
     public PageResponse<UserProductDTO> findProductsForUser(
             String keyword, String category, int page, int size
     ) {
-        // 빈 문자열은 null로 처리 (JPQL에서 :keyword IS NULL 조건 활용)
         String keywordParam = StringUtils.hasText(keyword) ? keyword : null;
         String categoryParam = StringUtils.hasText(category) ? category : null;
 
@@ -66,6 +65,7 @@ public class ProductService {
                 .price(dto.getPrice())
                 .stock(dto.getStock())
                 .description(dto.getDescription())
+                .imageUrl(dto.getImageUrl())
                 .status(ProductStatus.SELL)
                 .build();
         return productRepository.save(product).getId();
@@ -80,6 +80,7 @@ public class ProductService {
                         .price(p.getPrice())
                         .stock(p.getStock())
                         .description(p.getDescription())
+                        .imageUrl(p.getImageUrl())
                         .status(p.getStatus())
                         .createdDate(p.getCreatedDate())
                         .lastModifiedDate(p.getLastModifiedDate())
@@ -97,6 +98,7 @@ public class ProductService {
                 .price(product.getPrice())
                 .stock(product.getStock())
                 .description(product.getDescription())
+                .imageUrl(product.getImageUrl())
                 .status(product.getStatus())
                 .createdDate(product.getCreatedDate())
                 .lastModifiedDate(product.getLastModifiedDate())
@@ -107,8 +109,10 @@ public class ProductService {
     public void updateProduct(Long productId, AdminProductDTO dto) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
-        product.update(dto.getName(), dto.getCategory(), dto.getPrice(),
-                dto.getStock(), dto.getDescription(), dto.getStatus());
+        product.update(
+                dto.getName(), dto.getCategory(), dto.getPrice(),
+                dto.getStock(), dto.getDescription(), dto.getImageUrl(), dto.getStatus()
+        );
     }
 
     @Transactional

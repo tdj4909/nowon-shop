@@ -15,7 +15,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Getter
-@Setter // 실제 프로젝트에서는 Setter 대신 의미 있는 메서드(update 등)를 쓰는 게 더 안전하긴 합니다!
+@Setter
 @NoArgsConstructor
 @EntityListeners(AuditingEntityListener.class)
 @Table(name = "products")
@@ -38,6 +38,8 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    private String imageUrl;
+
     @Enumerated(EnumType.STRING)
     private ProductStatus status;
 
@@ -48,14 +50,15 @@ public class Product {
     @LastModifiedDate
     private LocalDateTime lastModifiedDate;
 
-    @Builder // 모든 필드를 포함하도록 클래스 레벨이나 전체 생성자에 붙이는 것이 편합니다.
-    public Product(String name, String category, Long price, Integer stock, String description, ProductStatus status) {
+    @Builder
+    public Product(String name, String category, Long price, Integer stock, String description, String imageUrl, ProductStatus status) {
         this.name = name;
         this.category = category;
         this.price = price;
         this.stock = stock;
         this.description = description;
-        this.status = (status != null) ? status : ProductStatus.SELL; // null 방지
+        this.imageUrl = imageUrl;
+        this.status = (status != null) ? status : ProductStatus.SELL;
     }
 
     // 재고 차감
@@ -72,13 +75,14 @@ public class Product {
         this.stock += quantity;
     }
 
-    // 상품 정보 수정 (Setter 대신 의미 있는 메서드)
-    public void update(String name, String category, Long price, Integer stock, String description, ProductStatus status) {
+    // 상품 정보 수정
+    public void update(String name, String category, Long price, Integer stock, String description, String imageUrl, ProductStatus status) {
         this.name = name;
         this.category = category;
         this.price = price;
         this.stock = stock;
         this.description = description;
+        this.imageUrl = imageUrl;
         this.status = status;
     }
 }

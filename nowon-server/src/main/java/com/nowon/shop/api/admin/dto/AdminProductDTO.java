@@ -17,6 +17,7 @@ public class AdminProductDTO {
     private Long price;
     private Integer stock;
     private String description;
+    private String imageUrl;
     private ProductStatus status;
     private LocalDateTime createdDate;
     private LocalDateTime lastModifiedDate;
