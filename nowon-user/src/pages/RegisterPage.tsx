@@ -18,8 +18,10 @@ export default function RegisterPage() {
     try {
       await registerApi({ email, name, password })
       navigate('/login')
-    } catch {
-      setError('이미 사용 중인 이메일입니다.')
+    } catch (err) {
+      // 검증 실패 메시지(이메일 형식, 비밀번호 길이 등) 또는 이메일 중복 메시지 표시
+      const message = err instanceof Error ? err.message : ''
+      setError(message || '회원가입에 실패했습니다.')
     } finally {
       setLoading(false)
     }

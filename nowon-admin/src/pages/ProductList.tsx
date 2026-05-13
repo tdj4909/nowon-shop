@@ -51,8 +51,9 @@ export default function ProductList() {
     try {
       await axiosInstance.delete(`/api/admin/products/${productId}`);
       fetchProducts();
-    } catch (err: any) {
-      alert(err.response?.data?.message ?? "삭제에 실패했습니다.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      alert(message || "삭제에 실패했습니다.");
     }
   };
 

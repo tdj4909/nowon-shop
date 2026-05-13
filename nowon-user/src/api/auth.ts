@@ -11,8 +11,13 @@ export interface RegisterRequest {
   password: string
 }
 
+export interface LoginResponse {
+  accessToken: string
+  tokenType: string
+}
+
 export const login = (data: LoginRequest) =>
-  api.post<{ accessToken: string }>('/api/auth/login', data)
+  api.post<LoginResponse>('/api/auth/login', data)
 
 export const register = (data: RegisterRequest) =>
   api.post('/api/auth/register', data)

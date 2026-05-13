@@ -63,7 +63,8 @@ export default function OrderList() {
       await axiosInstance.patch(`/api/admin/orders/${orderId}/status?status=${status}`);
       fetchOrders(); // 목록 갱신
     } catch (err) {
-      alert("상태 변경에 실패했습니다.");
+      const message = err instanceof Error ? err.message : "";
+      alert(message || "상태 변경에 실패했습니다.");
     }
   };
 
@@ -73,8 +74,10 @@ export default function OrderList() {
     try {
       await axiosInstance.patch(`/api/admin/orders/${orderId}/cancel`);
       fetchOrders();
-    } catch (err: any) {
-      alert(err.response?.data?.message ?? "주문 취소에 실패했습니다.");
+    } catch (err) {
+      // "배송 중인 주문은 취소할 수 없습니다" 같은 구체적 이유를 표시
+      const message = err instanceof Error ? err.message : "";
+      alert(message || "주문 취소에 실패했습니다.");
     }
   };
 

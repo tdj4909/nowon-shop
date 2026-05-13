@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
-import axios from "axios";
+import axiosInstance from "../api/axios";
 
 export default function UserCreate() {
   const navigate = useNavigate();
@@ -21,17 +21,15 @@ export default function UserCreate() {
     e.preventDefault();
 
     try {
-          // 백엔드 컨트롤러 주소로 데이터 전송
-          const response = await axios.post("http://localhost:8080/api/admin/members", formData);
-          
-          if (response.status === 200) {
-            alert(`${formData.name} 님이 성공적으로 등록되었습니다.`);
-            navigate("/users"); // 등록 후 목록 페이지로 이동
-          }
-        } catch (error: any) {
-          console.error("회원 등록 에러:", error);
-          alert(error.response?.data || "회원 등록 중 오류가 발생했습니다.");
-        }
+      // axiosInstance를 사용해서 토큰 자동 첨부 및 ApiResponse 언래핑 적용
+      await axiosInstance.post("/api/admin/members", formData);
+      alert(`${formData.name} 님이 성공적으로 등록되었습니다.`);
+      navigate("/users"); // 등록 후 목록 페이지로 이동
+    } catch (err) {
+      // 검증 실패(이메일 형식, 비밀번호 길이 등) 또는 이메일 중복 메시지 표시
+      const message = err instanceof Error ? err.message : "";
+      alert(message || "회원 등록 중 오류가 발생했습니다.");
+    }
   };
 
   return (

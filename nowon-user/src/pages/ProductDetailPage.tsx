@@ -81,8 +81,10 @@ export default function ProductDetailPage() {
       await createOrder(product.id, quantity)
       showToast('주문이 완료되었습니다!', 'success')
       setTimeout(() => navigate('/orders'), 1200)
-    } catch {
-      showToast('주문에 실패했습니다. 다시 시도해주세요.', 'error')
+    } catch (err) {
+      // 재고 부족, 수량 오류 등 백엔드의 구체적인 이유를 안내
+      const message = err instanceof Error ? err.message : ''
+      showToast(message || '주문에 실패했습니다. 다시 시도해주세요.', 'error')
     } finally {
       setOrdering(false)
     }

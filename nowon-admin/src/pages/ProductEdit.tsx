@@ -69,7 +69,8 @@ export default function ProductEdit() {
         const uploadRes = await axiosInstance.post("/api/admin/images/upload", formDataImage, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        imageUrl = uploadRes.data.data; // ApiResponse<String>
+        // 응답 인터셉터가 ApiResponse를 자동 언래핑하므로 uploadRes.data가 곧 URL 문자열
+        imageUrl = uploadRes.data;
       }
 
       await axiosInstance.put(`/api/admin/products/${productId}`, {
@@ -78,8 +79,10 @@ export default function ProductEdit() {
       });
       alert("상품이 수정되었습니다.");
       navigate("/products");
-    } catch (err: any) {
-      alert(err.response?.data?.message ?? "수정 중 오류가 발생했습니다.");
+    } catch (err) {
+      // 검증 실패 메시지 또는 업로드 실패 이유를 표시
+      const message = err instanceof Error ? err.message : "";
+      alert(message || "수정 중 오류가 발생했습니다.");
     } finally {
       setUploading(false);
     }

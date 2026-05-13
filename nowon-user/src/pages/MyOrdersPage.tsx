@@ -44,8 +44,10 @@ export default function MyOrdersPage() {
       await cancelOrder(orderId)
       showToast('주문이 취소되었습니다.', 'success')
       fetchOrders()
-    } catch {
-      showToast('주문 취소에 실패했습니다.', 'error')
+    } catch (err) {
+      // "배송 중인 주문은 취소할 수 없습니다" 같은 구체적 이유를 표시
+      const message = err instanceof Error ? err.message : ''
+      showToast(message || '주문 취소에 실패했습니다.', 'error')
     } finally {
       setCancellingId(null)
     }

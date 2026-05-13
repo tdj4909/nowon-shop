@@ -20,8 +20,10 @@ export default function LoginPage() {
       const res = await loginApi({ email, password })
       login(res.data.accessToken)
       navigate('/')
-    } catch {
-      setError('이메일 또는 비밀번호가 올바르지 않습니다.')
+    } catch (err) {
+      // 백엔드의 @Valid 검증 실패 또는 인증 실패 메시지를 그대로 표시
+      const message = err instanceof Error ? err.message : ''
+      setError(message || '이메일 또는 비밀번호가 올바르지 않습니다.')
     } finally {
       setLoading(false)
     }

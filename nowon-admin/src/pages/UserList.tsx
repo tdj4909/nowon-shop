@@ -50,8 +50,9 @@ export default function UserList() {
     try {
       await axiosInstance.patch(`/api/admin/members/${memberId}/status?status=${status}`);
       fetchUsers();
-    } catch (err: any) {
-      alert(err.response?.data?.message ?? "상태 변경에 실패했습니다.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      alert(message || "상태 변경에 실패했습니다.");
     }
   };
 

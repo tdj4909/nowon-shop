@@ -45,7 +45,8 @@ export default function ProductCreate() {
         const uploadRes = await axiosInstance.post("/api/admin/images/upload", formDataImage, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        imageUrl = uploadRes.data.data; // ApiResponse<String>
+        // 응답 인터셉터가 ApiResponse를 자동 언래핑하므로 uploadRes.data가 곧 URL 문자열
+        imageUrl = uploadRes.data;
       }
 
       await axiosInstance.post("/api/admin/products", {
@@ -54,9 +55,10 @@ export default function ProductCreate() {
       });
       alert("상품이 등록되었습니다.");
       navigate("/products");
-    } catch (error) {
-      console.error("등록 실패:", error);
-      alert("상품 등록 중 오류가 발생했습니다.");
+    } catch (err) {
+      // 검증 실패 메시지(상품명 필수, 가격 범위 등) 또는 업로드 실패 이유를 표시
+      const message = err instanceof Error ? err.message : "";
+      alert(message || "상품 등록 중 오류가 발생했습니다.");
     } finally {
       setUploading(false);
     }
