@@ -23,7 +23,7 @@ public class ImageUploadController {
 
     @Operation(summary = "Upload product image", description = "Uploads an image to Cloudinary and returns the URL")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<ApiResponse<String>> upload(
+    public ResponseEntity<ApiResponse<Void>> upload(
             @RequestPart("file") MultipartFile file
     ) {
         String imageUrl = imageUploadService.upload(file);
