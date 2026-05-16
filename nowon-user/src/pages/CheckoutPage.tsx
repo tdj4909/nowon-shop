@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
-import type { Stripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { createPaymentIntent } from '../api/payments'
 
-// ── 결제 폼 (Elements 내부에서만 useStripe 사용 가능) ──────────────────
+// Vite env는 모듈 로드 시점에 이미 주입되므로 모듈 레벨 초기화 안전
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string)
+
+// ── 결제 폼 ───────────────────────────────────────────────────────────
 function CheckoutForm({ orderId }: { orderId: number }) {
   const stripe = useStripe()
   const elements = useElements()
@@ -25,13 +27,10 @@ function CheckoutForm({ orderId }: { orderId: number }) {
     const { error } = await stripe.confirmPayment({
       elements,
       confirmParams: {
-        // 결제 완료 후 리다이렉트될 URL
         return_url: `${window.location.origin}/orders?paid=${orderId}`,
       },
     })
 
-    // confirmPayment는 성공 시 return_url로 리다이렉트하므로
-    // 여기까지 오면 에러가 발생한 경우
     if (error) {
       setErrorMsg(error.message ?? '결제에 실패했습니다.')
       setProcessing(false)
@@ -40,7 +39,6 @@ function CheckoutForm({ orderId }: { orderId: number }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Stripe Elements — 카드 번호 / 유효기간 / CVC 등 */}
       <div className="bg-gray-50 rounded-xl p-4">
         <PaymentElement onReady={() => setElementReady(true)} />
       </div>
@@ -68,7 +66,7 @@ function CheckoutForm({ orderId }: { orderId: number }) {
   )
 }
 
-// ── 페이지 진입점 — clientSecret 로드 후 Elements 초기화 ───────────────
+// ── 페이지 진입점 ──────────────────────────────────────────────────────
 export default function CheckoutPage() {
   const { orderId } = useParams<{ orderId: string }>()
   const navigate = useNavigate()
@@ -76,14 +74,6 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
-
-  useEffect(() => {
-    const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
-    if (key) {
-      setStripePromise(loadStripe(key))
-    }
-  }, [])
 
   useEffect(() => {
     if (!orderId) return
@@ -122,13 +112,11 @@ export default function CheckoutPage() {
 
   return (
     <main className="max-w-md mx-auto px-4 py-12">
-      {/* 헤더 */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">결제</h1>
         <p className="text-sm text-gray-400 mt-1">주문번호 #{orderId}</p>
       </div>
 
-      {/* 테스트 안내 */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-6">
         <p className="text-xs font-semibold text-amber-700 mb-1">테스트 모드</p>
         <p className="text-xs text-amber-600">
@@ -137,7 +125,6 @@ export default function CheckoutPage() {
         </p>
       </div>
 
-      {/* Stripe Elements */}
       <Elements
         stripe={stripePromise}
         options={{
@@ -145,7 +132,7 @@ export default function CheckoutPage() {
           appearance: {
             theme: 'stripe',
             variables: {
-              colorPrimary: '#4f46e5',  // indigo-600
+              colorPrimary: '#4f46e5',
               borderRadius: '12px',
               fontFamily: 'system-ui, sans-serif',
             },
