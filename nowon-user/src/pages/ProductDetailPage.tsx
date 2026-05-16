@@ -22,7 +22,7 @@ function ProductDetailImage({ imageUrl, name, isSoldOut }: { imageUrl: string | 
   const [imgError, setImgError] = useState(false)
 
   return (
-    <div className="relative rounded-2xl overflow-hidden h-72 mb-10 bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="relative rounded-2xl overflow-hidden mb-10 bg-gradient-to-br from-gray-50 to-gray-100" style={{ aspectRatio: '4/3' }}>
       {imageUrl && !imgError ? (
         <img
           src={imageUrl}
