@@ -4,7 +4,14 @@ import { loadStripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { createPaymentIntent } from '../api/payments'
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+// 모듈 로드 시 즉시 실행하지 않고 CheckoutPage 마운트 시점에 초기화
+let stripePromise: ReturnType<typeof loadStripe> | null = null
+const getStripe = () => {
+  if (!stripePromise) {
+    stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+  }
+  return stripePromise
+}
 
 // ── 결제 폼 (Elements 내부에서만 useStripe 사용 가능) ──────────────────
 function CheckoutForm({ orderId }: { orderId: number }) {
@@ -131,7 +138,7 @@ export default function CheckoutPage() {
 
       {/* Stripe Elements */}
       <Elements
-        stripe={stripePromise}
+        stripe={getStripe()}
         options={{
           clientSecret,
           appearance: {
