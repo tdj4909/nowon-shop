@@ -7,7 +7,7 @@
 | Service | URL |
 |---|---|
 | Customer Storefront | https://nowon-shop.vercel.app |
-| Admin Dashboard | https://nowon-shop-2q48.vercel.app |
+| Admin Dashboard | https://nowon-shop-iexs.vercel.app |
 | REST API | https://nowon-shop-production.up.railway.app |
 | API Docs (Swagger) | https://nowon-shop-production.up.railway.app/swagger-ui/index.html |
 
