@@ -27,6 +27,6 @@ public class ImageUploadController {
             @RequestPart("file") MultipartFile file
     ) {
         String imageUrl = imageUploadService.upload(file);
-        return ResponseEntity.ok(ApiResponse.<String>ok(imageUrl));
+        return ResponseEntity.ok(ApiResponse.data(imageUrl));
     }
 }

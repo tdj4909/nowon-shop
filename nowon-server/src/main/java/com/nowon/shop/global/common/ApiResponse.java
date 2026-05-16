@@ -19,6 +19,14 @@ public class ApiResponse<T> {
                 .build();
     }
 
+    // String 데이터 반환 시 ok(String message) 오버로드와 충돌을 피하기 위한 전용 메서드
+    public static <T> ApiResponse<T> data(T data) {
+        return ApiResponse.<T>builder()
+                .success(true)
+                .data(data)
+                .build();
+    }
+
     // 데이터 + 메시지를 함께 반환하는 성공 응답
     public static <T> ApiResponse<T> ok(T data, String message) {
         return ApiResponse.<T>builder()
