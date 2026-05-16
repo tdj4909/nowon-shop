@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { getProducts, getCategories } from '../api/products'
 import type { Product } from '../api/products'
 
@@ -43,13 +43,17 @@ function ProductImage({ imageUrl, name }: { imageUrl: string | null; name: strin
 }
 
 export default function ProductListPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState('')
+  // 랜딩 페이지 카테고리 클릭 시 URL 파라미터로 초기값 설정
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('category') ?? '')
   const [page, setPage] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
   const [totalElements, setTotalElements] = useState(0)
@@ -79,7 +83,6 @@ export default function ProductListPage() {
     fetchProducts()
   }, [fetchProducts])
 
-  const [searchInput, setSearchInput] = useState('')
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchInput)
@@ -91,6 +94,9 @@ export default function ProductListPage() {
   const handleCategoryChange = (cat: string) => {
     setSelectedCategory(cat)
     setPage(0)
+    // URL 파라미터 동기화
+    if (cat) setSearchParams({ category: cat })
+    else setSearchParams({})
   }
 
   if (error) {
@@ -107,8 +113,8 @@ export default function ProductListPage() {
   return (
     <main className="max-w-5xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-        <span className="text-sm text-gray-400">총 {totalElements}개 상품</span>
+        <h1 className="text-2xl font-bold text-gray-900">전체 상품</h1>
+        <span className="text-sm text-gray-400">총 {totalElements}개</span>
       </div>
 
       <div className="relative mb-4">

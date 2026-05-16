@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom'
 import App from '../App'
+import LandingPage from '../pages/LandingPage'
 import ProductListPage from '../pages/ProductListPage'
 import ProductDetailPage from '../pages/ProductDetailPage'
 import LoginPage from '../pages/LoginPage'
@@ -13,7 +14,8 @@ const router = createBrowserRouter([
     path: '/',
     element: <App />,
     children: [
-      { index: true, element: <ProductListPage /> },
+      { index: true, element: <LandingPage /> },
+      { path: 'products', element: <ProductListPage /> },
       { path: 'products/:id', element: <ProductDetailPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },

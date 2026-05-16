@@ -19,7 +19,7 @@ export default function Header() {
           Nowon Shop
         </Link>
         <nav className="flex items-center gap-4 text-sm font-medium text-gray-600">
-          <Link to="/" className="hover:text-indigo-600 transition-colors">상품</Link>
+          <Link to="/products" className="hover:text-indigo-600 transition-colors">상품</Link>
 
           {/* 장바구니 아이콘 */}
           <Link to="/cart" className="relative hover:text-indigo-600 transition-colors">
