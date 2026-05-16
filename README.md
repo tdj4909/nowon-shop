@@ -13,12 +13,6 @@
 
 ---
 
-## Screenshots
-
-> _Screenshots coming soon_
-
----
-
 ## Tech Stack
 
 ### Backend
@@ -29,6 +23,8 @@
 | ORM | Spring Data JPA (Hibernate) |
 | Authentication | JWT (stateless) |
 | Database | MySQL |
+| Payment | Stripe |
+| Image Upload | Cloudinary |
 | API Docs | SpringDoc OpenAPI (Swagger UI) |
 | Build | Gradle |
 | Deployment | Railway |
@@ -52,11 +48,12 @@
 nowon-shop/
 ├── nowon-server/   # Spring Boot REST API
 │   └── src/main/java/com/nowon/shop/
-│       ├── api/          # Controllers & DTOs (admin / user / auth)
+│       ├── api/          # Controllers & DTOs (admin / user / auth / payment)
 │       ├── domain/       # Entities, Repositories, Services
 │       │   ├── member/
 │       │   ├── order/
-│       │   └── product/
+│       │   ├── product/
+│       │   └── payment/
 │       └── global/       # Security, Exception handling, Common response
 ├── nowon-admin/    # Admin dashboard — React + TypeScript
 └── nowon-user/     # Customer storefront — React + TypeScript
@@ -67,19 +64,22 @@ nowon-shop/
 ## Features
 
 ### Customer Storefront
+- Landing page with hero section, category shortcuts, and new arrivals
 - Browse products without login
 - Keyword search with debounce (400ms) and category filter (server-side)
 - Server-side pagination (8 items per page)
 - User registration and login
 - Product detail page with quantity selector and real-time total price
-- Place orders
-- View order history with status and cancel option
+- Add to cart (persisted in localStorage) or buy instantly
+- Multi-item cart with quantity controls and bulk checkout
+- Stripe payment integration — card, KakaoPay, NaverPay, and more
+- View order history with status tracking and cancel option
 - Skeleton loading / toast messages / error state UI
 
 ### Admin Dashboard
 - Secure login with role-based access control
 - Dashboard with summary cards (members / products / orders) and recent orders
-- Product management — create, read, update, delete
+- Product management — create, read, update, delete with image upload (Cloudinary)
 - Member management — list, block, activate
 - Order management — status update, cancel
 
@@ -91,7 +91,7 @@ nowon-shop/
 - N+1 problem prevention with `JOIN FETCH`
 - Server-side search, category filter, and pagination using JPQL + Spring Data `Pageable`
 - Order price snapshot — `OrderItem.orderPrice` preserves the price at time of purchase
-- 15 unit/integration tests passing
+- Stripe Webhook integration — signature verification, order status update on payment result
 - Swagger UI with JWT authentication support
 
 ---
@@ -123,6 +123,17 @@ OrderItem orderItem = OrderItem.builder()
     .build();
 ```
 
+### Stripe Payment Flow
+Order is created with `PENDING` status first, then the client initializes Stripe Elements using a `clientSecret` returned from the backend.  
+On payment completion, Stripe sends a Webhook event to the backend. The backend verifies the signature and updates the order to `PAID` or `CANCELLED`.
+
+```
+Frontend: create order (PENDING) → request PaymentIntent → show Stripe Elements
+Backend:  create PaymentIntent with orderId in metadata → return clientSecret
+Stripe:   process payment → send Webhook (payment_intent.succeeded / payment_failed)
+Backend:  verify signature → parse orderId from raw JSON → update order status
+```
+
 ### Server-side Search & Pagination
 Filtering and pagination run at the database level using JPQL with dynamic parameters and Spring Data `Pageable`.  
 Performance stays consistent regardless of data volume, avoiding the memory overhead of in-memory filtering.
@@ -134,6 +145,7 @@ Stack traces are never exposed to clients. All errors return a structured `ApiRe
 ### Security Considerations
 - Login errors return the same message whether the email or password is wrong, preventing account enumeration.
 - `@Transactional(readOnly = true)` is set as the class-level default; write methods override with `@Transactional`.
+- Stripe Webhook requests are verified using the signature header before processing.
 - Swagger UI can be disabled in production via Spring Profile — currently enabled for demo purposes.
 
 ---
@@ -156,19 +168,29 @@ Stack traces are never exposed to clients. All errors return a structured `ApiRe
 ### Products (Admin)
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
+| GET | `/api/admin/products` | ADMIN | List all products |
+| GET | `/api/admin/products/{id}` | ADMIN | Get product detail |
 | POST | `/api/admin/products` | ADMIN | Create product |
 | PUT | `/api/admin/products/{id}` | ADMIN | Update product |
 | DELETE | `/api/admin/products/{id}` | ADMIN | Delete product |
+| POST | `/api/admin/images/upload` | ADMIN | Upload product image (Cloudinary) |
 
 ### Orders
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| POST | `/api/orders` | USER | Place an order |
+| POST | `/api/orders` | USER | Place an order (multi-item) |
 | GET | `/api/orders` | USER | Get my orders |
+| GET | `/api/orders/{id}` | USER | Get order detail |
 | PATCH | `/api/orders/{id}/cancel` | USER | Cancel my order |
 | GET | `/api/admin/orders` | ADMIN | List all orders |
 | PATCH | `/api/admin/orders/{id}/status` | ADMIN | Update order status |
 | PATCH | `/api/admin/orders/{id}/cancel` | ADMIN | Cancel order (admin) |
+
+### Payments
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| POST | `/api/payments/intent/{orderId}` | USER | Create Stripe PaymentIntent |
+| POST | `/api/payments/webhook` | None | Stripe Webhook receiver |
 
 ### Members (Admin)
 | Method | Endpoint | Auth | Description |
@@ -185,6 +207,8 @@ Stack traces are never exposed to clients. All errors return a structured `ApiRe
 - Java 21+
 - Node.js 18+
 - MySQL
+- Stripe account (test mode)
+- Cloudinary account
 
 ### Backend Setup
 
@@ -192,10 +216,9 @@ Stack traces are never exposed to clients. All errors return a structured `ApiRe
 # 1. Create the database
 mysql -u root -p -e "CREATE DATABASE nowon_shop;"
 
-# 2. Copy and configure application settings
-cp nowon-server/src/main/resources/application.yaml.sample \
-   nowon-server/src/main/resources/application.yaml
-# → Edit DB credentials and JWT secret (32+ characters)
+# 2. Configure application settings
+# Edit nowon-server/src/main/resources/application.yaml
+# → DB credentials, JWT secret (32+ chars), Stripe keys, Cloudinary keys
 
 # 3. Run the server
 cd nowon-server
@@ -214,9 +237,20 @@ npm run dev
 
 # Customer storefront
 cd nowon-user
+cp .env.local.example .env.local
+# → Set VITE_API_URL and VITE_STRIPE_PUBLISHABLE_KEY
 npm install
 npm run dev
 # → http://localhost:5174
+```
+
+### Stripe Local Webhook (optional)
+
+```bash
+# Install Stripe CLI, then:
+stripe login
+stripe listen --forward-to localhost:8080/api/payments/webhook
+# → Copy the whsec_... secret to application.yaml stripe.webhook-secret
 ```
 
 ---
@@ -230,10 +264,12 @@ npm run dev
 | 3 | Spring Security + stateless JWT authentication |
 | 4 | Global exception handling — `ErrorCode` / `BusinessException` / `GlobalExceptionHandler` |
 | 5 | Pessimistic locking for concurrent order safety |
-| 6 | Unit and integration tests (15 passing) |
-| 7 | Admin dashboard — full CRUD UI with React + TailAdmin |
-| 8 | Public product API + user registration endpoint |
-| 9 | Customer storefront — built from scratch with React + Tailwind CSS |
-| 10 | Server-side search, category filter, and pagination |
-| 11 | Swagger UI with JWT auth integration |
-| 12 | Deployment — Railway (backend + MySQL) / Vercel (frontend) |
+| 6 | Admin dashboard — full CRUD UI with React + TailAdmin |
+| 7 | Public product API + user registration endpoint |
+| 8 | Customer storefront — built from scratch with React + Tailwind CSS |
+| 9 | Server-side search, category filter, and pagination |
+| 10 | Swagger UI with JWT auth integration |
+| 11 | Multi-item cart with localStorage persistence |
+| 12 | Stripe payment integration — PaymentIntent flow + Webhook handling |
+| 13 | Landing page, auth-aware UI, SPA routing fix (vercel.json) |
+| 14 | Deployment — Railway (backend + MySQL) / Vercel (frontend) |
