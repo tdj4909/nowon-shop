@@ -71,10 +71,12 @@ public class PaymentService {
      * 서명 검증으로 위변조를 방지하고 주문 상태를 PAID로 업데이트
      */
     @Transactional
-    public void handleWebhook(String payload, String sigHeader) {
+    public void handleWebhook(byte[] payload, String sigHeader) {
         Event event;
         try {
-            event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
+            // raw bytes → UTF-8 변환 명시: 서명 검증에 일치하는 인코딩 보장
+            String payloadStr = new String(payload, java.nio.charset.StandardCharsets.UTF_8);
+            event = Webhook.constructEvent(payloadStr, sigHeader, webhookSecret);
         } catch (SignatureVerificationException e) {
             log.warn("Stripe Webhook 서명 검증 실패: {}", e.getMessage());
             throw new BusinessException(ErrorCode.PAYMENT_WEBHOOK_INVALID);
@@ -84,16 +86,25 @@ public class PaymentService {
             PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer()
                     .getObject()
                     .orElseThrow();
-
-            String orderIdStr = intent.getMetadata().get("orderId");
-            if (orderIdStr == null) return;
-
-            Long orderId = Long.parseLong(orderIdStr);
-            Order order = orderRepository.findById(orderId).orElse(null);
-            if (order == null) return;
-
-            order.updateStatus(OrderStatus.PAID);
-            log.info("결제 완료 — orderId: {}, amount: {}원", orderId, intent.getAmount());
+            updateOrderStatus(intent, OrderStatus.PAID);
+            log.info("결제 완료 — orderId: {}, amount: {}원", intent.getMetadata().get("orderId"), intent.getAmount());
         }
+
+        if ("payment_intent.payment_failed".equals(event.getType())) {
+            PaymentIntent intent = (PaymentIntent) event.getDataObjectDeserializer()
+                    .getObject()
+                    .orElseThrow();
+            updateOrderStatus(intent, OrderStatus.CANCELLED);
+            log.warn("결제 실패 — orderId: {}", intent.getMetadata().get("orderId"));
+        }
+    }
+
+    private void updateOrderStatus(PaymentIntent intent, OrderStatus status) {
+        String orderIdStr = intent.getMetadata().get("orderId");
+        if (orderIdStr == null) return;
+        Long orderId = Long.parseLong(orderIdStr);
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) return;
+        order.updateStatus(status);
     }
 }

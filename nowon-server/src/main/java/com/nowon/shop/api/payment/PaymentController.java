@@ -4,9 +4,13 @@ import com.nowon.shop.domain.payment.service.PaymentService;
 import com.nowon.shop.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
 
 @Tag(name = "Payments", description = "Stripe payment integration")
 @RestController
@@ -16,10 +20,6 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    /**
-     * PaymentIntent 생성 — 프론트가 Stripe Elements를 초기화할 때 호출
-     * 반환된 clientSecret으로 결제창을 띄움
-     */
     @Operation(summary = "Create payment intent", description = "Creates a Stripe PaymentIntent for the given order and returns clientSecret.")
     @PostMapping("/intent/{orderId}")
     public ResponseEntity<ApiResponse<String>> createPaymentIntent(@PathVariable Long orderId) {
@@ -28,16 +28,16 @@ public class PaymentController {
     }
 
     /**
-     * Stripe Webhook — 결제 완료 이벤트 수신
-     * Stripe 대시보드에서 엔드포인트 등록 필요: POST /api/payments/webhook
-     * 주의: Webhook body는 raw bytes여야 하므로 Spring의 HttpMessageConverter를 거치지 않아야 함
+     * Stripe Webhook — raw bytes로 읽어야 서명 검증이 정확함
+     * @RequestBody String 사용 시 Spring이 UTF-8 변환 과정에서 바이트가 달라져 서명 불일치 발생
      */
     @Operation(summary = "Stripe webhook", description = "Receives Stripe events. Register this endpoint in Stripe Dashboard.")
     @PostMapping("/webhook")
     public ResponseEntity<Void> handleWebhook(
-            @RequestBody String payload,
+            HttpServletRequest request,
             @RequestHeader("Stripe-Signature") String sigHeader
-    ) {
+    ) throws IOException {
+        byte[] payload = StreamUtils.copyToByteArray(request.getInputStream());
         paymentService.handleWebhook(payload, sigHeader);
         return ResponseEntity.ok().build();
     }
