@@ -1,17 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
+import type { Stripe } from '@stripe/stripe-js'
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js'
 import { createPaymentIntent } from '../api/payments'
-
-// 모듈 로드 시 즉시 실행하지 않고 CheckoutPage 마운트 시점에 초기화
-let stripePromise: ReturnType<typeof loadStripe> | null = null
-const getStripe = () => {
-  if (!stripePromise) {
-    stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
-  }
-  return stripePromise
-}
 
 // ── 결제 폼 (Elements 내부에서만 useStripe 사용 가능) ──────────────────
 function CheckoutForm({ orderId }: { orderId: number }) {
@@ -84,6 +76,15 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const stripeRef = useRef<Promise<Stripe | null> | null>(null)
+
+  useEffect(() => {
+    // VITE_STRIPE_PUBLISHABLE_KEY가 확실히 로드된 시점에 초기화
+    const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
+    if (!stripeRef.current && key) {
+      stripeRef.current = loadStripe(key)
+    }
+  }, [])
 
   useEffect(() => {
     if (!orderId) return
@@ -139,7 +140,7 @@ export default function CheckoutPage() {
 
       {/* Stripe Elements */}
       <Elements
-        stripe={getStripe()}
+        stripe={stripeRef.current}
         options={{
           clientSecret,
           appearance: {
