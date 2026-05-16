@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { loadStripe } from '@stripe/stripe-js'
 import type { Stripe } from '@stripe/stripe-js'
@@ -76,13 +76,12 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const stripeRef = useRef<Promise<Stripe | null> | null>(null)
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null)
 
   useEffect(() => {
-    // VITE_STRIPE_PUBLISHABLE_KEY가 확실히 로드된 시점에 초기화
     const key = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
-    if (!stripeRef.current && key) {
-      stripeRef.current = loadStripe(key)
+    if (key) {
+      setStripePromise(loadStripe(key))
     }
   }, [])
 
@@ -140,7 +139,7 @@ export default function CheckoutPage() {
 
       {/* Stripe Elements */}
       <Elements
-        stripe={stripeRef.current}
+        stripe={stripePromise}
         options={{
           clientSecret,
           appearance: {
