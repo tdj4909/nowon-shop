@@ -20,6 +20,7 @@ function CheckoutForm({ orderId }: { orderId: number }) {
   const navigate = useNavigate()
 
   const [processing, setProcessing] = useState(false)
+  const [elementReady, setElementReady] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -49,7 +50,7 @@ function CheckoutForm({ orderId }: { orderId: number }) {
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Stripe Elements — 카드 번호 / 유효기간 / CVC 등 */}
       <div className="bg-gray-50 rounded-xl p-4">
-        <PaymentElement />
+        <PaymentElement onReady={() => setElementReady(true)} />
       </div>
 
       {errorMsg && (
@@ -58,7 +59,7 @@ function CheckoutForm({ orderId }: { orderId: number }) {
 
       <button
         type="submit"
-        disabled={!stripe || processing}
+        disabled={!stripe || !elementReady || processing}
         className="w-full py-3.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm"
       >
         {processing ? '결제 처리 중...' : '결제하기'}
