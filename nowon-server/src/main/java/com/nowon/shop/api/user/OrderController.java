@@ -2,7 +2,7 @@ package com.nowon.shop.api.user;
 
 import com.nowon.shop.api.user.dto.OrderCreateRequestDTO;
 import com.nowon.shop.api.user.dto.OrderResponseDTO;
-import com.nowon.shop.domain.member.repository.MemberRepository;
+import com.nowon.shop.domain.member.service.MemberService;
 import com.nowon.shop.domain.order.service.OrderService;
 import com.nowon.shop.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,18 +23,19 @@ import java.util.List;
 public class OrderController {
 
     private final OrderService orderService;
-    private final MemberRepository memberRepository;
+    private final MemberService memberService;
 
-    @Operation(summary = "Place an order", description = "Creates a new order for the authenticated user. Uses pessimistic locking to prevent overselling.")
+    @Operation(
+        summary = "Place an order",
+        description = "Creates a new order with one or more products. Uses pessimistic locking per product to prevent overselling."
+    )
     @PostMapping
     public ResponseEntity<ApiResponse<Long>> createOrder(
             @AuthenticationPrincipal String email,
             @Valid @RequestBody OrderCreateRequestDTO request
     ) {
-        Long memberId = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found."))
-                .getId();
-        Long orderId = orderService.createOrder(memberId, request.getProductId(), request.getQuantity());
+        Long memberId = memberService.findByEmail(email).getId();
+        Long orderId = orderService.createOrder(memberId, request.getItems());
         return ResponseEntity.ok(ApiResponse.ok(orderId, "주문이 완료되었습니다."));
     }
 
@@ -43,9 +44,7 @@ public class OrderController {
     public ResponseEntity<ApiResponse<List<OrderResponseDTO>>> getMyOrders(
             @AuthenticationPrincipal String email
     ) {
-        Long memberId = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("Member not found."))
-                .getId();
+        Long memberId = memberService.findByEmail(email).getId();
         List<OrderResponseDTO> orders = orderService.getOrdersByMember(memberId).stream()
                 .map(OrderResponseDTO::from)
                 .toList();
@@ -57,11 +56,10 @@ public class OrderController {
     public ResponseEntity<ApiResponse<OrderResponseDTO>> getOrderDetail(
             @Parameter(description = "Order ID") @PathVariable Long orderId
     ) {
-        OrderResponseDTO order = OrderResponseDTO.from(orderService.getOrderDetail(orderId));
-        return ResponseEntity.ok(ApiResponse.ok(order));
+        return ResponseEntity.ok(ApiResponse.ok(OrderResponseDTO.from(orderService.getOrderDetail(orderId))));
     }
 
-    @Operation(summary = "Cancel order", description = "Cancels an order. Only orders in PENDING or ORDER status can be cancelled.")
+    @Operation(summary = "Cancel order", description = "Cancels an order. Only PENDING or ORDER status can be cancelled.")
     @PatchMapping("/{orderId}/cancel")
     public ResponseEntity<ApiResponse<Void>> cancelOrder(
             @Parameter(description = "Order ID") @PathVariable Long orderId

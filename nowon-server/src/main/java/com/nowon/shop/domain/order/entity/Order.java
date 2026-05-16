@@ -48,12 +48,17 @@ public class Order {
     public Order(Member member, Long totalPrice) {
         this.member = member;
         this.totalPrice = totalPrice;
-        this.status = OrderStatus.PENDING; // 주문 생성 시 기본값은 결제 대기
+        this.status = OrderStatus.PENDING;
     }
 
-    // 주문 상태 변경 (Setter 대신 의미 있는 메서드로)
+    // 주문 상태 변경
     public void updateStatus(OrderStatus status) {
         this.status = status;
+    }
+
+    // 총액 확정 — 다중 상품 주문 시 OrderItem 추가 후 한 번에 갱신
+    public void updateTotalPrice(long totalPrice) {
+        this.totalPrice = totalPrice;
     }
 
     // 주문 취소 (취소 가능 상태 검증 포함)

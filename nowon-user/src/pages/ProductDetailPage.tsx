@@ -4,6 +4,7 @@ import { getProduct } from '../api/products'
 import type { Product } from '../api/products'
 import { createOrder } from '../api/orders'
 import { useAuth } from '../store/AuthContext'
+import { useCart } from '../store/CartContext'
 
 type ToastType = 'success' | 'error'
 
@@ -55,6 +56,7 @@ export default function ProductDetailPage() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null)
   const { isLoggedIn } = useAuth()
+  const { addItem } = useCart()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -70,6 +72,18 @@ export default function ProductDetailPage() {
     setTimeout(() => setToast(null), 2500)
   }
 
+  const handleAddToCart = () => {
+    if (!product) return
+    addItem({
+      productId: product.id,
+      productName: product.name,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      stock: product.stock,
+    })
+    showToast('장바구니에 담겼습니다.', 'success')
+  }
+
   const handleOrder = async () => {
     if (!isLoggedIn) {
       navigate('/login')
@@ -82,7 +96,6 @@ export default function ProductDetailPage() {
       showToast('주문이 완료되었습니다!', 'success')
       setTimeout(() => navigate('/orders'), 1200)
     } catch (err) {
-      // 재고 부족, 수량 오류 등 백엔드의 구체적인 이유를 안내
       const message = err instanceof Error ? err.message : ''
       showToast(message || '주문에 실패했습니다. 다시 시도해주세요.', 'error')
     } finally {
@@ -182,13 +195,25 @@ export default function ProductDetailPage() {
           <span className="text-gray-500">총 금액</span>
           <span className="text-lg font-bold text-gray-900">{totalPrice.toLocaleString()}원</span>
         </div>
-        <button
-          onClick={handleOrder}
-          disabled={isSoldOut || ordering}
-          className="w-full py-3.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm"
-        >
-          {isSoldOut ? '품절된 상품입니다' : ordering ? '주문 중...' : '주문하기'}
-        </button>
+
+        {/* 버튼 2개: 장바구니 + 바로 주문 */}
+        <div className="flex gap-2">
+          <button
+            onClick={handleAddToCart}
+            disabled={isSoldOut}
+            className="flex-1 py-3.5 border border-indigo-500 text-indigo-600 font-semibold rounded-xl hover:bg-indigo-50 disabled:opacity-50 transition-colors text-sm"
+          >
+            장바구니 담기
+          </button>
+          <button
+            onClick={handleOrder}
+            disabled={isSoldOut || ordering}
+            className="flex-1 py-3.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm"
+          >
+            {isSoldOut ? '품절' : ordering ? '주문 중...' : '바로 주문'}
+          </button>
+        </div>
+
         {!isLoggedIn && (
           <p className="text-center text-xs text-gray-400">로그인 후 주문할 수 있습니다.</p>
         )}

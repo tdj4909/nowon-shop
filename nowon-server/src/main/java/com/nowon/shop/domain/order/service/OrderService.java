@@ -1,5 +1,6 @@
 package com.nowon.shop.domain.order.service;
 
+import com.nowon.shop.api.user.dto.OrderCreateRequestDTO;
 import com.nowon.shop.domain.member.entity.Member;
 import com.nowon.shop.domain.member.service.MemberService;
 import com.nowon.shop.domain.order.entity.Order;
@@ -22,42 +23,44 @@ import java.util.List;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final MemberService memberService;       // MemberRepository 직접 의존 → MemberService로 변경
+    private final MemberService memberService;
     private final ProductRepository productRepository;
 
-    // 주문 생성
+    // 주문 생성 (다중 상품 지원)
     @Transactional
-    public Long createOrder(Long memberId, Long productId, int quantity) {
+    public Long createOrder(Long memberId, List<OrderCreateRequestDTO.OrderItemRequest> itemRequests) {
 
         Member member = memberService.findById(memberId);
 
-        // 비관적 락으로 상품 조회 — 동시 주문 시 재고 정합성 보장
-        Product product = productRepository.findByIdWithLock(productId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
+        long totalPrice = 0L;
 
-        // 재고 차감 (Product 내부 로직에서 재고 부족 시 예외 발생)
-        product.removeStock(quantity);
-
-        // 주문 총액 계산
-        Long totalPrice = product.getPrice() * quantity;
-
-        // 주문 생성
+        // 주문 먼저 생성 (OrderItem 추가 전)
         Order order = Order.builder()
                 .member(member)
-                .totalPrice(totalPrice)
+                .totalPrice(0L) // 아래에서 계산 후 갱신
                 .build();
 
-        // 주문 상품 생성 및 연관관계 설정
-        OrderItem orderItem = OrderItem.builder()
-                .order(order)
-                .product(product)
-                .orderPrice(product.getPrice()) // 주문 당시 가격 저장
-                .quantity(quantity)
-                .build();
+        for (OrderCreateRequestDTO.OrderItemRequest req : itemRequests) {
+            // 비관적 락으로 상품 조회 — 동시 주문 시 재고 정합성 보장
+            Product product = productRepository.findByIdWithLock(req.getProductId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
 
-        order.getOrderItems().add(orderItem);
+            // 재고 차감 (재고 부족 시 Product 내부에서 예외 발생)
+            product.removeStock(req.getQuantity());
 
-        // Order 저장 시 CascadeType.ALL로 OrderItem도 함께 저장됨
+            OrderItem orderItem = OrderItem.builder()
+                    .order(order)
+                    .product(product)
+                    .orderPrice(product.getPrice()) // 주문 당시 가격 스냅샷
+                    .quantity(req.getQuantity())
+                    .build();
+
+            order.getOrderItems().add(orderItem);
+            totalPrice += orderItem.getTotalPrice();
+        }
+
+        order.updateTotalPrice(totalPrice);
+
         return orderRepository.save(order).getId();
     }
 

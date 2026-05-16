@@ -73,9 +73,15 @@ public class MemberService {
                 .toList();
     }
 
-    // 내부 도메인 간 사용 — OrderService 등에서 Member 엔티티가 필요할 때
+    // ID로 Member 엔티티 조회 — OrderService 등 도메인 간 사용
     public Member findById(Long memberId) {
         return memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+    }
+
+    // 이메일로 Member 엔티티 조회 — Controller에서 @AuthenticationPrincipal(email) 처리용
+    public Member findByEmail(String email) {
+        return memberRepository.findByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
     }
 
@@ -91,7 +97,6 @@ public class MemberService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         if (!passwordEncoder.matches(dto.getPassword(), member.getPassword())) {
-            // 보안상 이메일/비번 오류를 동일 메시지로 처리
             throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
 

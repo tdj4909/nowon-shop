@@ -5,6 +5,7 @@ import ProductDetailPage from '../pages/ProductDetailPage'
 import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
 import MyOrdersPage from '../pages/MyOrdersPage'
+import CartPage from '../pages/CartPage'
 import PrivateRoute from '../components/PrivateRoute'
 
 const router = createBrowserRouter([
@@ -16,6 +17,7 @@ const router = createBrowserRouter([
       { path: 'products/:id', element: <ProductDetailPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
+      { path: 'cart', element: <CartPage /> },
       {
         path: 'orders',
         element: (
