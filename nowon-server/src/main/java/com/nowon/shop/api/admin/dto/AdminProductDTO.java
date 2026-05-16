@@ -1,5 +1,6 @@
 package com.nowon.shop.api.admin.dto;
 
+import com.nowon.shop.domain.product.entity.Product;
 import com.nowon.shop.domain.product.entity.ProductStatus;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -48,4 +49,19 @@ public class AdminProductDTO {
 
     private LocalDateTime createdDate;
     private LocalDateTime lastModifiedDate;
+
+    public static AdminProductDTO from(Product product) {
+        return AdminProductDTO.builder()
+                .id(product.getId())
+                .name(product.getName())
+                .category(product.getCategory())
+                .price(product.getPrice())
+                .stock(product.getStock())
+                .description(product.getDescription())
+                .imageUrl(product.getImageUrl())
+                .status(product.getStatus())
+                .createdDate(product.getCreatedDate())
+                .lastModifiedDate(product.getLastModifiedDate())
+                .build();
+    }
 }

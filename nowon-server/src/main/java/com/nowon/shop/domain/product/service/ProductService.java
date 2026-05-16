@@ -73,36 +73,14 @@ public class ProductService {
 
     public List<AdminProductDTO> findAllProductsForAdmin() {
         return productRepository.findAll().stream()
-                .map(p -> AdminProductDTO.builder()
-                        .id(p.getId())
-                        .name(p.getName())
-                        .category(p.getCategory())
-                        .price(p.getPrice())
-                        .stock(p.getStock())
-                        .description(p.getDescription())
-                        .imageUrl(p.getImageUrl())
-                        .status(p.getStatus())
-                        .createdDate(p.getCreatedDate())
-                        .lastModifiedDate(p.getLastModifiedDate())
-                        .build())
+                .map(AdminProductDTO::from)
                 .toList();
     }
 
     public AdminProductDTO findProductForAdmin(Long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
-        return AdminProductDTO.builder()
-                .id(product.getId())
-                .name(product.getName())
-                .category(product.getCategory())
-                .price(product.getPrice())
-                .stock(product.getStock())
-                .description(product.getDescription())
-                .imageUrl(product.getImageUrl())
-                .status(product.getStatus())
-                .createdDate(product.getCreatedDate())
-                .lastModifiedDate(product.getLastModifiedDate())
-                .build();
+        return AdminProductDTO.from(product);
     }
 
     @Transactional
