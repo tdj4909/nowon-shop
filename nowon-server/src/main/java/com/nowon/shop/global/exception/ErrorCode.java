@@ -21,6 +21,10 @@ public enum ErrorCode {
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 주문입니다."),
     ORDER_CANNOT_CANCEL(HttpStatus.BAD_REQUEST, "배송 중이거나 배송 완료된 주문은 취소할 수 없습니다."),
 
+    // 결제
+    PAYMENT_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "결제 처리 중 오류가 발생했습니다."),
+    PAYMENT_WEBHOOK_INVALID(HttpStatus.BAD_REQUEST, "유효하지 않은 결제 웹훅 요청입니다."),
+
     // 이미지
     IMAGE_EMPTY(HttpStatus.BAD_REQUEST, "업로드할 이미지 파일이 없습니다."),
     IMAGE_INVALID_TYPE(HttpStatus.BAD_REQUEST, "이미지 파일만 업로드할 수 있습니다."),

@@ -40,12 +40,13 @@ export default function CartPage() {
 
     setOrdering(true)
     try {
-      await createOrderMultiple(
+      // 주문 생성 (PENDING 상태) → 반환된 orderId로 결제 페이지 이동
+      const res = await createOrderMultiple(
         items.map((item) => ({ productId: item.productId, quantity: item.quantity }))
       )
+      const orderId = res.data
       clearCart()
-      showToast('주문이 완료되었습니다!', 'success')
-      setTimeout(() => navigate('/orders'), 1200)
+      navigate(`/checkout/${orderId}`)
     } catch (err) {
       const message = err instanceof Error ? err.message : ''
       showToast(message || '주문에 실패했습니다. 다시 시도해주세요.', 'error')
@@ -70,7 +71,7 @@ export default function CartPage() {
           </svg>
           <p className="text-gray-400">장바구니가 비어 있습니다.</p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/products')}
             className="text-sm text-indigo-600 hover:underline"
           >
             쇼핑 계속하기
@@ -78,11 +79,9 @@ export default function CartPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {/* 상품 목록 */}
           <ul className="space-y-3">
             {items.map((item) => (
               <li key={item.productId} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
-                {/* 썸네일 */}
                 <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
                   {item.imageUrl ? (
                     <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
@@ -95,13 +94,11 @@ export default function CartPage() {
                   )}
                 </div>
 
-                {/* 상품 정보 */}
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-800 truncate">{item.productName}</p>
                   <p className="text-sm text-indigo-600 font-semibold">{item.price.toLocaleString()}원</p>
                 </div>
 
-                {/* 수량 조절 */}
                 <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden bg-white">
                   <button
                     onClick={() => {
@@ -122,7 +119,6 @@ export default function CartPage() {
                   </button>
                 </div>
 
-                {/* 소계 + 삭제 */}
                 <div className="text-right flex-shrink-0">
                   <p className="font-semibold text-gray-800 text-sm">
                     {(item.price * item.quantity).toLocaleString()}원
@@ -138,7 +134,6 @@ export default function CartPage() {
             ))}
           </ul>
 
-          {/* 합계 + 주문 버튼 */}
           <div className="bg-gray-50 rounded-2xl p-5 space-y-4">
             <div className="flex justify-between text-sm text-gray-500">
               <span>상품 {totalCount}개</span>
@@ -149,7 +144,7 @@ export default function CartPage() {
               disabled={ordering}
               className="w-full py-3.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm"
             >
-              {ordering ? '주문 중...' : `${totalPrice.toLocaleString()}원 주문하기`}
+              {ordering ? '주문 생성 중...' : `${totalPrice.toLocaleString()}원 결제하기`}
             </button>
             {!isLoggedIn && (
               <p className="text-center text-xs text-gray-400">로그인 후 주문할 수 있습니다.</p>

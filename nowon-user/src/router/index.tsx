@@ -7,6 +7,7 @@ import LoginPage from '../pages/LoginPage'
 import RegisterPage from '../pages/RegisterPage'
 import MyOrdersPage from '../pages/MyOrdersPage'
 import CartPage from '../pages/CartPage'
+import CheckoutPage from '../pages/CheckoutPage'
 import PrivateRoute from '../components/PrivateRoute'
 
 const router = createBrowserRouter([
@@ -20,6 +21,14 @@ const router = createBrowserRouter([
       { path: 'login', element: <LoginPage /> },
       { path: 'register', element: <RegisterPage /> },
       { path: 'cart', element: <CartPage /> },
+      {
+        path: 'checkout/:orderId',
+        element: (
+          <PrivateRoute>
+            <CheckoutPage />
+          </PrivateRoute>
+        ),
+      },
       {
         path: 'orders',
         element: (

@@ -45,6 +45,9 @@ dependencies {
 
 	// Cloudinary (이미지 업로드)
 	implementation 'com.cloudinary:cloudinary-http5:2.3.2'
+
+	// Stripe (결제)
+	implementation 'com.stripe:stripe-java:26.3.0'
 }
 
 tasks.named('test') {
