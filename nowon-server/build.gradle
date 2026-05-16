@@ -48,6 +48,9 @@ dependencies {
 
 	// Stripe (결제)
 	implementation 'com.stripe:stripe-java:26.3.0'
+
+	// Gson (Stripe Webhook raw JSON 파싱)
+	implementation 'com.google.code.gson:gson:2.11.0'
 }
 
 tasks.named('test') {
