@@ -10,11 +10,17 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => {
+    return !!localStorage.getItem('accessToken')
+  })
 
+  // 다른 탭에서 로그아웃 시 동기화
   useEffect(() => {
-    const token = localStorage.getItem('accessToken')
-    setIsLoggedIn(!!token)
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'accessToken') setIsLoggedIn(!!e.newValue)
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
   }, [])
 
   const login = (token: string) => {
