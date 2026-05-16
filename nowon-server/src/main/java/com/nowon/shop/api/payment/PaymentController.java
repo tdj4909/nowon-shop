@@ -24,7 +24,7 @@ public class PaymentController {
     @PostMapping("/intent/{orderId}")
     public ResponseEntity<ApiResponse<String>> createPaymentIntent(@PathVariable Long orderId) {
         String clientSecret = paymentService.createPaymentIntent(orderId);
-        return ResponseEntity.ok(ApiResponse.ok(clientSecret));
+        return ResponseEntity.ok(ApiResponse.<String>ok(clientSecret));
     }
 
     /**
