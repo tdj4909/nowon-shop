@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 export interface CartItem {
@@ -19,10 +19,26 @@ interface CartContextType {
   totalCount: number
 }
 
+const CART_KEY = 'nowon-cart'
+
+function loadFromStorage(): CartItem[] {
+  try {
+    const raw = localStorage.getItem(CART_KEY)
+    return raw ? (JSON.parse(raw) as CartItem[]) : []
+  } catch {
+    return []
+  }
+}
+
 const CartContext = createContext<CartContextType | null>(null)
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([])
+  const [items, setItems] = useState<CartItem[]>(loadFromStorage)
+
+  // items 변경 시 localStorage에 자동 동기화
+  useEffect(() => {
+    localStorage.setItem(CART_KEY, JSON.stringify(items))
+  }, [items])
 
   const addItem = (newItem: Omit<CartItem, 'quantity'>) => {
     setItems((prev) => {
