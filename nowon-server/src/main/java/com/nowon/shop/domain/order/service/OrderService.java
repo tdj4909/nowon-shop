@@ -1,7 +1,7 @@
 package com.nowon.shop.domain.order.service;
 
 import com.nowon.shop.domain.member.entity.Member;
-import com.nowon.shop.domain.member.repository.MemberRepository;
+import com.nowon.shop.domain.member.service.MemberService;
 import com.nowon.shop.domain.order.entity.Order;
 import com.nowon.shop.domain.order.entity.OrderItem;
 import com.nowon.shop.domain.order.entity.OrderStatus;
@@ -22,15 +22,14 @@ import java.util.List;
 public class OrderService {
 
     private final OrderRepository orderRepository;
-    private final MemberRepository memberRepository;
+    private final MemberService memberService;       // MemberRepository 직접 의존 → MemberService로 변경
     private final ProductRepository productRepository;
 
     // 주문 생성
     @Transactional
     public Long createOrder(Long memberId, Long productId, int quantity) {
 
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        Member member = memberService.findById(memberId);
 
         // 비관적 락으로 상품 조회 — 동시 주문 시 재고 정합성 보장
         Product product = productRepository.findByIdWithLock(productId)

@@ -73,6 +73,12 @@ public class MemberService {
                 .toList();
     }
 
+    // 내부 도메인 간 사용 — OrderService 등에서 Member 엔티티가 필요할 때
+    public Member findById(Long memberId) {
+        return memberRepository.findById(memberId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+    }
+
     @Transactional
     public void updateMemberStatus(Long memberId, MemberStatus status) {
         Member member = memberRepository.findById(memberId)
@@ -85,7 +91,8 @@ public class MemberService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
 
         if (!passwordEncoder.matches(dto.getPassword(), member.getPassword())) {
-            throw new BusinessException(ErrorCode.MEMBER_NOT_FOUND); // 보안상 이메일/비번 오류를 동일 메시지로 처리
+            // 보안상 이메일/비번 오류를 동일 메시지로 처리
+            throw new BusinessException(ErrorCode.LOGIN_FAILED);
         }
 
         return jwtTokenProvider.createToken(member.getEmail(), member.getRole().name());
