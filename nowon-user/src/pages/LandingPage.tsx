@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { getProducts, getCategories } from '../api/products'
 import type { Product } from '../api/products'
+import { useAuth } from '../store/AuthContext'
 
 function ProductCard({ product }: { product: Product }) {
   const [imgError, setImgError] = useState(false)
@@ -47,6 +48,7 @@ export default function LandingPage() {
   const [newProducts, setNewProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const { isLoggedIn } = useAuth()
 
   useEffect(() => {
     Promise.all([
@@ -80,12 +82,14 @@ export default function LandingPage() {
             >
               상품 둘러보기
             </Link>
-            <Link
-              to="/register"
-              className="px-6 py-3 bg-white/15 text-white font-semibold rounded-xl hover:bg-white/25 transition-colors text-sm border border-white/20"
-            >
-              회원가입
-            </Link>
+            {!isLoggedIn && (
+              <Link
+                to="/register"
+                className="px-6 py-3 bg-white/15 text-white font-semibold rounded-xl hover:bg-white/25 transition-colors text-sm border border-white/20"
+              >
+                회원가입
+              </Link>
+            )}
           </div>
         </div>
       </section>
@@ -149,16 +153,34 @@ export default function LandingPage() {
       <section className="bg-indigo-50 border-t border-indigo-100">
         <div className="max-w-5xl mx-auto px-4 py-16 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-1">지금 시작해보세요</h2>
-            <p className="text-gray-500 text-sm">회원가입 후 다양한 상품을 편리하게 주문할 수 있어요.</p>
+            {isLoggedIn ? (
+              <>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">주문 내역을 확인해보세요</h2>
+                <p className="text-gray-500 text-sm">지금까지 주문한 상품을 확인할 수 있어요.</p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">지금 시작해보세요</h2>
+                <p className="text-gray-500 text-sm">회원가입 후 다양한 상품을 편리하게 주문할 수 있어요.</p>
+              </>
+            )}
           </div>
           <div className="flex gap-3 flex-shrink-0">
-            <Link
-              to="/register"
-              className="px-5 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors text-sm"
-            >
-              무료 회원가입
-            </Link>
+            {isLoggedIn ? (
+              <Link
+                to="/orders"
+                className="px-5 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors text-sm"
+              >
+                주문 내역 보기
+              </Link>
+            ) : (
+              <Link
+                to="/register"
+                className="px-5 py-2.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition-colors text-sm"
+              >
+                무료 회원가입
+              </Link>
+            )}
             <Link
               to="/products"
               className="px-5 py-2.5 border border-gray-300 text-gray-700 font-semibold rounded-xl hover:border-indigo-400 hover:text-indigo-600 transition-colors text-sm"
