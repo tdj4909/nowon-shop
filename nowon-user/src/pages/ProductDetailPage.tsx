@@ -92,9 +92,9 @@ export default function ProductDetailPage() {
     if (!product) return
     setOrdering(true)
     try {
-      await createOrder(product.id, quantity)
-      showToast('주문이 완료되었습니다!', 'success')
-      setTimeout(() => navigate('/orders'), 1200)
+      const res = await createOrder(product.id, quantity)
+      const orderId = res.data
+      navigate(`/checkout/${orderId}`)
     } catch (err) {
       const message = err instanceof Error ? err.message : ''
       showToast(message || '주문에 실패했습니다. 다시 시도해주세요.', 'error')
