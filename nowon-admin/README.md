@@ -1,39 +1,41 @@
-# 🚀 노원 어드민 프로젝트 (Nowon Admin)
+# 🚀 Nowon Shop Admin
 
-리액트 기초를 다지고 실무 수준의 대시보드 구조를 학습하기 위해 진행한 **관리자 페이지 프로젝트**입니다. 
-오픈소스 템플릿을 기반으로 구조를 분석하고, 필요한 기능을 직접 커스터마이징하며 구현하고 있습니다.
-
----
-
-## 📌 프로젝트 개요
-- **목적**: 리액트 컴포넌트 구조 이해 및 데이터 시각화 라이브러리(ApexCharts) 활용 능력 배양
-- **학습 포인트**: 
-  - Tailwind CSS를 활용한 반응형 레이아웃 구현
-  - TypeScript를 이용한 타입 안정성 확보
-  - 재사용 가능한 공통 컴포넌트 설계
-
-## 🛠 기술 스택 (Tech Stack)
-- **Frontend**: React (Vite), TypeScript
-- **Styling**: Tailwind CSS
-- **Library**: React Router, ApexCharts (차트 구현)
-- **Deployment**: Vercel (또는 GitHub Pages 예정)
-
-## 💡 주요 구현 및 학습 내용
-- [ ] **대시보드 한글화**: 영어 기반의 템플릿을 한국어 환경에 맞춰 전체 로컬라이징 진행 중
-- [ ] **사이드바 구조 변경**: 프로젝트 목적에 맞는 메뉴 트리 재구성
-- [ ] **컴포넌트 분리**: 반복되는 UI 요소를 공통 컴포넌트로 추출하여 코드 중복 제거 (진행 예정)
-
-## ⚖️ 저작권 및 출처 명시
-본 프로젝트는 학습 목적으로 [TailAdmin](https://github.com/TailAdmin/free-react-tailwind-admin-dashboard) 오픈소스 템플릿을 기반으로 제작되었습니다. 기초 레이아웃과 UI 시스템을 활용하였으며, 내부 로직과 세부 디자인은 본인이 직접 수정하며 개발 중입니다.
+`nowon-shop` 프로젝트의 **관리자 대시보드**입니다. 상품 / 주문 / 회원을 관리하기 위한 React + TypeScript 기반 SPA로, [TailAdmin](https://github.com/TailAdmin/free-react-tailwind-admin-dashboard) 오픈소스 템플릿을 기반으로 시작하여 프로젝트에 필요한 기능만 남기고 정리했습니다.
 
 ---
 
-## 🏃 실행 방법
-1. 저장소 클론: `git clone https://github.com/tdj4909/nowon-admin.git`
-2. 패키지 설치: `npm install`
-3. 로컬 서버 실행: `npm run dev`
+## 📌 주요 기능
+- **인증**: JWT 기반 로그인, 토큰 만료 시 자동 로그아웃, `PrivateRoute`로 ADMIN 권한 보호
+- **대시보드**: 회원 / 상품 / 주문 요약 카드, 최근 주문 5건 표시
+- **상품 관리**: 등록 · 수정 · 삭제, Cloudinary 이미지 업로드 + 미리보기
+- **주문 관리**: 주문 상태 변경 (PENDING → PAID → SHIPPED → DELIVERED), 주문 취소
+- **회원 관리**: 회원 목록, 활성/차단 상태 변경, 신규 회원 등록 (USER/ADMIN 권한 지정)
+- **다크 모드** 지원
 
+## 🛠 기술 스택
+- **Frontend**: React 19, TypeScript, Vite
+- **Styling**: Tailwind CSS v4
+- **Routing**: React Router v7
+- **HTTP**: Axios (응답 인터셉터로 `ApiResponse<T>` 자동 언래핑)
+- **Deployment**: Vercel
 
-## 개발 진행 상황
-2026.04.06 - Start
-2026.04.08 - add menu items to sidebar
+## 📂 디렉토리 구조
+```
+src/
+├── api/             ← axios 인스턴스 + 인터셉터
+├── components/
+│   ├── common/      ← PrivateRoute, ScrollToTop, ThemeToggleButton 등
+│   ├── tables/      ← GenericTable (재사용 테이블)
+│   └── ui/          ← Badge, Table 등 공통 UI
+├── context/         ← SidebarContext, ThemeContext
+├── icons/           ← 사이드바 메뉴용 SVG 아이콘
+├── layout/          ← AppLayout, AppHeader, AppSidebar, Backdrop
+└── pages/           ← Dashboard, ProductList/Create/Edit, OrderList, UserList/Create, SignIn
+```
+
+## 🔗 백엔드 연동
+- API Base URL: `VITE_API_URL` 환경변수 (기본값 `http://localhost:8080`)
+- 모든 요청은 `axiosInstance`를 통해 전송되며, 토큰 자동 첨부와 `ApiResponse` 언래핑이 인터셉터에서 처리됩니다.
+
+## ⚖️ 저작권 및 출처
+본 프로젝트는 [TailAdmin](https://github.com/TailAdmin/free-react-tailwind-admin-dashboard) 오픈소스 템플릿을 기반으로 시작하였습니다. 프로젝트에서 사용하지 않는 의존성과 컴포넌트(차트, 캘린더, 지도, 드래그앤드롭 등)는 모두 제거하였고, 비즈니스 로직과 페이지는 직접 구현했습니다.

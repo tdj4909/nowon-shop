@@ -55,7 +55,7 @@ instance.interceptors.response.use(
     // 401: 토큰 만료 또는 미인증 → 자동 로그아웃
     if (error.response?.status === 401) {
       localStorage.removeItem("accessToken");
-      window.location.href = "/sign-in";
+      window.location.href = "/signin";
       return Promise.reject(error);
     }
 
