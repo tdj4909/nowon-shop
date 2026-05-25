@@ -1,18 +1,9 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import axiosInstance from "../../api/axios";
+import { getRoleFromToken } from "../../utils/jwt";
 
-// JWT payload를 디코딩해서 role을 꺼내는 함수
-function getRoleFromToken(token: string): string | null {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.role ?? null;
-  } catch {
-    return null;
-  }
-}
-
-export default function Signin() {
+export default function SignIn() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");

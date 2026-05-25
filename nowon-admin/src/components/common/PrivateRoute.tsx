@@ -1,14 +1,5 @@
 import { Navigate } from "react-router";
-
-// JWT payload에서 role을 꺼내는 함수
-function getRoleFromToken(token: string): string | null {
-  try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.role ?? null;
-  } catch {
-    return null;
-  }
-}
+import { getRoleFromToken } from "../../utils/jwt";
 
 export default function PrivateRoute({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem("accessToken");
