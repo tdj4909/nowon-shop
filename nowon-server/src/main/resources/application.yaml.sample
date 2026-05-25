@@ -19,6 +19,29 @@ spring:
         format_sql: true
     database-platform: org.hibernate.dialect.MySQLDialect
 
-jwt:
-secret: your-very-long-secret-key-at-least-32-characters-long
+  # 파일 업로드 크기 제한
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
 
+jwt:
+  secret: your-very-long-secret-key-at-least-32-characters-long
+
+# Cloudinary 설정 — 환경변수로 주입 권장
+CLOUDINARY_CLOUD_NAME: your-cloudinary-cloud-name
+CLOUDINARY_API_KEY: your-cloudinary-api-key
+CLOUDINARY_API_SECRET: your-cloudinary-api-secret
+
+# Stripe 설정
+# 키는 Stripe 대시보드 > Developers > API keys 에서 발급
+stripe:
+  secret-key: sk_test_your_stripe_secret_key
+  webhook-secret: whsec_your_stripe_webhook_secret
+
+# 주문 정리 스케줄러
+# PENDING 상태로 ttl-minutes 분 이상 지난 주문을 cleanup-interval-ms 주기로 자동 취소
+order:
+  pending:
+    ttl-minutes: 30
+    cleanup-interval-ms: 300000  # 5분

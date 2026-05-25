@@ -12,11 +12,14 @@ import com.nowon.shop.domain.product.repository.ProductRepository;
 import com.nowon.shop.global.exception.BusinessException;
 import com.nowon.shop.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
+@Slf4j
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -101,5 +104,33 @@ public class OrderService {
     // 전체 주문 목록 조회 (어드민용)
     public List<Order> getAllOrders() {
         return orderRepository.findAll();
+    }
+
+    /**
+     * 만료된 PENDING 주문 자동 취소 — 스케줄러에서 호출
+     *
+     * 결제 페이지에서 사용자가 이탈한 경우 PENDING 주문이 영구히 남으면서
+     * 재고가 차감된 상태로 유지된다. cutoff 시간 이전에 생성된 PENDING 주문을
+     * 일괄 취소하고 재고를 복구한다.
+     *
+     * @param cutoff 이 시각 이전에 생성된 PENDING 주문이 정리 대상
+     * @return 취소된 주문 수
+     */
+    @Transactional
+    public int cleanupExpiredPendingOrders(LocalDateTime cutoff) {
+        List<Order> expired = orderRepository.findPendingOrdersBefore(OrderStatus.PENDING, cutoff);
+
+        for (Order order : expired) {
+            // Order.cancel()의 상태 검증을 거치지 않고 직접 처리
+            // (PENDING 상태인 것을 이미 쿼리에서 보장했고, 검증 메서드를 우회할 사유가 명확)
+            order.updateStatus(OrderStatus.CANCELLED);
+            for (OrderItem item : order.getOrderItems()) {
+                item.getProduct().addStock(item.getQuantity());
+            }
+            log.info("만료된 PENDING 주문 자동 취소 — orderId={}, createdDate={}",
+                    order.getId(), order.getCreatedDate());
+        }
+
+        return expired.size();
     }
 }

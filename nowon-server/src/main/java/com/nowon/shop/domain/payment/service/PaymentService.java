@@ -5,6 +5,8 @@ import com.google.gson.JsonParser;
 import com.nowon.shop.domain.order.entity.Order;
 import com.nowon.shop.domain.order.entity.OrderStatus;
 import com.nowon.shop.domain.order.repository.OrderRepository;
+import com.nowon.shop.domain.payment.entity.ProcessedStripeEvent;
+import com.nowon.shop.domain.payment.repository.ProcessedStripeEventRepository;
 import com.nowon.shop.global.exception.BusinessException;
 import com.nowon.shop.global.exception.ErrorCode;
 import com.stripe.Stripe;
@@ -29,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 public class PaymentService {
 
     private final OrderRepository orderRepository;
+    private final ProcessedStripeEventRepository processedEventRepository;
 
     @Value("${stripe.secret-key}")
     private String secretKey;
@@ -66,6 +69,12 @@ public class PaymentService {
         }
     }
 
+    /**
+     * Stripe Webhook 처리 — 멱등성 보장
+     *
+     * Stripe는 동일 이벤트를 재전송할 수 있으므로 event.getId() 기반으로 중복 처리를 차단한다.
+     * 이미 처리된 이벤트는 200 OK만 응답하고 비즈니스 로직은 실행하지 않는다.
+     */
     @Transactional
     public void handleWebhook(byte[] payload, String sigHeader) {
         String payloadStr = new String(payload, StandardCharsets.UTF_8);
@@ -78,11 +87,20 @@ public class PaymentService {
             throw new BusinessException(ErrorCode.PAYMENT_WEBHOOK_INVALID);
         }
 
+        // 멱등성 체크 — 이미 처리된 이벤트면 skip
+        if (processedEventRepository.existsById(event.getId())) {
+            log.info("이미 처리된 Stripe 이벤트 — skip. eventId={}, type={}",
+                    event.getId(), event.getType());
+            return;
+        }
+
         // getDataObjectDeserializer()는 API 버전 불일치 시 비어있을 수 있으므로
         // raw JSON에서 직접 orderId를 추출 — API 버전에 무관하게 동작
         String orderIdStr = extractOrderIdFromRawJson(payloadStr);
         if (orderIdStr == null) {
             log.warn("Webhook에서 orderId를 찾을 수 없음: eventType={}", event.getType());
+            // orderId 없는 이벤트도 처리 이력에 남겨 재시도 방지
+            saveProcessedEvent(event);
             return;
         }
 
@@ -99,6 +117,13 @@ public class PaymentService {
             }
             default -> log.debug("미처리 Webhook 이벤트: {}", event.getType());
         }
+
+        // 처리 이력 저장 — 같은 트랜잭션 안에서 함께 커밋됨
+        saveProcessedEvent(event);
+    }
+
+    private void saveProcessedEvent(Event event) {
+        processedEventRepository.save(new ProcessedStripeEvent(event.getId(), event.getType()));
     }
 
     /**

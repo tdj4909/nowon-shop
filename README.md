@@ -91,7 +91,8 @@ nowon-shop/
 - N+1 problem prevention with `JOIN FETCH`
 - Server-side search, category filter, and pagination using JPQL + Spring Data `Pageable`
 - Order price snapshot — `OrderItem.orderPrice` preserves the price at time of purchase
-- Stripe Webhook integration — signature verification, order status update on payment result
+- Stripe Webhook integration — signature verification, idempotency via event-id tracking, order status update on payment result
+- Scheduled cleanup of expired `PENDING` orders — abandoned checkouts are auto-cancelled and stock is restored
 - Swagger UI with JWT authentication support
 
 ---
@@ -132,6 +133,30 @@ Frontend: create order (PENDING) → request PaymentIntent → show Stripe Eleme
 Backend:  create PaymentIntent with orderId in metadata → return clientSecret
 Stripe:   process payment → send Webhook (payment_intent.succeeded / payment_failed)
 Backend:  verify signature → parse orderId from raw JSON → update order status
+```
+
+### Webhook Idempotency
+Stripe may retransmit the same event multiple times due to network issues or delayed acknowledgements.  
+To guarantee idempotent processing, every received event id is persisted to `processed_stripe_events` after handling. Subsequent deliveries of the same event are detected and skipped, so business side effects (status update, future point accrual, email, etc.) never run twice for one logical payment.
+
+```java
+// PaymentService.handleWebhook
+if (processedEventRepository.existsById(event.getId())) {
+    return; // already handled — skip
+}
+// ... business logic ...
+processedEventRepository.save(new ProcessedStripeEvent(event.getId(), event.getType()));
+```
+
+### Expired PENDING Order Cleanup
+When a user abandons the Stripe checkout page, the order stays in `PENDING` state and its stock remains reserved indefinitely — blocking other buyers.  
+A scheduled task (`@Scheduled`, default every 5 minutes) cancels `PENDING` orders older than the configured TTL (default 30 minutes) and restores the stock to each `Product`. TTL and interval are externalized in `application.yaml`, so they can be tuned per environment without code changes.
+
+```yaml
+order:
+  pending:
+    ttl-minutes: 30
+    cleanup-interval-ms: 300000  # 5 minutes
 ```
 
 ### Server-side Search & Pagination
@@ -273,3 +298,4 @@ stripe listen --forward-to localhost:8080/api/payments/webhook
 | 12 | Stripe payment integration — PaymentIntent flow + Webhook handling |
 | 13 | Landing page, auth-aware UI, SPA routing fix (vercel.json) |
 | 14 | Deployment — Railway (backend + MySQL) / Vercel (frontend) |
+| 15 | Webhook idempotency via `processed_stripe_events` + scheduled cleanup of abandoned `PENDING` orders |
