@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router";
+import { BrowserRouter, Routes, Route } from "react-router";
 import SignIn from "./pages/AuthPages/SignIn";
 import NotFound from "./pages/OtherPage/NotFound";
 import AppLayout from "./layout/AppLayout";
@@ -14,7 +14,7 @@ import PrivateRoute from "./components/common/PrivateRoute";
 
 export default function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <ScrollToTop />
       <Routes>
         {/* 어드민 메인 레이아웃 — 로그인 필요 */}
@@ -34,6 +34,6 @@ export default function App() {
         {/* 404 */}
         <Route path="*" element={<NotFound />} />
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 }

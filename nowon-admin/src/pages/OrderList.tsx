@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import GenericTable, { Column } from "../components/tables/GenericTable";
 import Badge from "../components/ui/badge/Badge";
+import Loading from "../components/common/Loading";
 import axiosInstance from "../api/axios";
 
 interface OrderItem {
@@ -139,7 +140,7 @@ export default function OrderList() {
     },
   ];
 
-  if (loading) return <div className="p-10 text-center">데이터를 불러오는 중입니다...</div>;
+  if (loading) return <Loading />;
 
   return (
     <div className="space-y-6">

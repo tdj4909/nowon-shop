@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import axiosInstance from "../api/axios";
+import Loading from "../components/common/Loading";
 
 export default function ProductEdit() {
   const { productId } = useParams();
@@ -91,7 +92,7 @@ export default function ProductEdit() {
   // 현재 표시할 이미지: 새로 선택한 파일 미리보기 > 기존 URL > 없음
   const displayImage = imagePreview ?? existingImageUrl;
 
-  if (loading) return <div className="p-10 text-center">불러오는 중...</div>;
+  if (loading) return <Loading message="불러오는 중..." />;
 
   return (
     <div className="max-w-2xl mx-auto p-6 bg-white shadow-md rounded-lg">
