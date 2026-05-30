@@ -27,6 +27,7 @@ spring:
 
 jwt:
   secret: your-very-long-secret-key-at-least-32-characters-long
+  token-validity-ms: 3600000  # 1시간 (밀리초)
 
 # Cloudinary 설정 — 환경변수로 주입 권장
 CLOUDINARY_CLOUD_NAME: your-cloudinary-cloud-name

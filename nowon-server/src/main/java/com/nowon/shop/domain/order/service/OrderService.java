@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 @Slf4j
@@ -43,7 +44,14 @@ public class OrderService {
                 .totalPrice(0L) // 아래에서 계산 후 갱신
                 .build();
 
-        for (OrderCreateRequestDTO.OrderItemRequest req : itemRequests) {
+        // 데드락 예방 — 상품 락 획득 순서를 productId 오름차순으로 고정한다.
+        // 정렬하지 않으면 (요청 A: 상품1→2, 요청 B: 상품2→1)처럼 엇갈린 순서로
+        // PESSIMISTIC_WRITE 락을 잡다가 상호 대기(deadlock)에 빠질 수 있다.
+        List<OrderCreateRequestDTO.OrderItemRequest> sortedRequests = itemRequests.stream()
+                .sorted(Comparator.comparing(OrderCreateRequestDTO.OrderItemRequest::getProductId))
+                .toList();
+
+        for (OrderCreateRequestDTO.OrderItemRequest req : sortedRequests) {
             // 비관적 락으로 상품 조회 — 동시 주문 시 재고 정합성 보장
             Product product = productRepository.findByIdWithLock(req.getProductId())
                     .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND));
@@ -67,16 +75,28 @@ public class OrderService {
         return orderRepository.save(order).getId();
     }
 
-    // 주문 취소
+    // 주문 취소 — 본인 주문만 취소 가능
     @Transactional
-    public void cancelOrder(Long orderId) {
-        Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+    public void cancelOrder(Long memberId, Long orderId) {
+        Order order = getOwnedOrder(memberId, orderId);
 
         // 취소 가능 상태 검증은 Order 엔티티 내부에서 처리
         order.cancel();
 
         // 재고 복구
+        for (OrderItem item : order.getOrderItems()) {
+            item.getProduct().addStock(item.getQuantity());
+        }
+    }
+
+    // 주문 취소 (어드민용) — 소유권 검증 없이 처리
+    @Transactional
+    public void cancelOrderByAdmin(Long orderId) {
+        Order order = orderRepository.findByIdWithItems(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        order.cancel();
+
         for (OrderItem item : order.getOrderItems()) {
             item.getProduct().addStock(item.getQuantity());
         }
@@ -95,15 +115,34 @@ public class OrderService {
         return orderRepository.findByMemberIdOrderByCreatedDateDesc(memberId);
     }
 
-    // 주문 상세 조회
-    public Order getOrderDetail(Long orderId) {
+    // 주문 상세 조회 — 본인 주문만 조회 가능
+    public Order getOrderDetail(Long memberId, Long orderId) {
+        return getOwnedOrder(memberId, orderId);
+    }
+
+    // 주문 상세 조회 (어드민용) — 소유권 검증 없이 조회
+    public Order getOrderDetailByAdmin(Long orderId) {
         return orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
     }
 
-    // 전체 주문 목록 조회 (어드민용)
+    // 전체 주문 목록 조회 (어드민용) — N+1 방지를 위해 fetch join 사용
     public List<Order> getAllOrders() {
-        return orderRepository.findAll();
+        return orderRepository.findAllWithItems();
+    }
+
+    /**
+     * 주문 조회 + 소유권 검증 공통 로직.
+     * 주문이 존재하지 않으면 ORDER_NOT_FOUND, 요청자의 주문이 아니면 ORDER_FORBIDDEN.
+     */
+    private Order getOwnedOrder(Long memberId, Long orderId) {
+        Order order = orderRepository.findByIdWithItems(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        if (!order.getMember().getId().equals(memberId)) {
+            throw new BusinessException(ErrorCode.ORDER_FORBIDDEN);
+        }
+        return order;
     }
 
     /**

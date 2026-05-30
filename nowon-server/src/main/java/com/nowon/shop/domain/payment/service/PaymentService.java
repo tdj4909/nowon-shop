@@ -2,6 +2,8 @@ package com.nowon.shop.domain.payment.service;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.nowon.shop.domain.member.entity.Member;
+import com.nowon.shop.domain.member.repository.MemberRepository;
 import com.nowon.shop.domain.order.entity.Order;
 import com.nowon.shop.domain.order.entity.OrderStatus;
 import com.nowon.shop.domain.order.repository.OrderRepository;
@@ -32,6 +34,7 @@ public class PaymentService {
 
     private final OrderRepository orderRepository;
     private final ProcessedStripeEventRepository processedEventRepository;
+    private final MemberRepository memberRepository;
 
     @Value("${stripe.secret-key}")
     private String secretKey;
@@ -44,9 +47,21 @@ public class PaymentService {
         Stripe.apiKey = secretKey;
     }
 
-    public String createPaymentIntent(Long orderId) {
+    public String createPaymentIntent(Long orderId, String email) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+
+        // 소유권 검증 — 다른 사용자의 주문으로 PaymentIntent를 생성하지 못하도록 차단
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+        if (!order.getMember().getId().equals(member.getId())) {
+            throw new BusinessException(ErrorCode.ORDER_FORBIDDEN);
+        }
+
+        // 결제 가능 상태 검증 — 이미 결제되었거나 취소된 주문은 재결제 불가
+        if (order.getStatus() != OrderStatus.PENDING) {
+            throw new BusinessException(ErrorCode.PAYMENT_NOT_PAYABLE);
+        }
 
         try {
             PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()

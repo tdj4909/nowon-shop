@@ -27,6 +27,14 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
             "WHERE o.id = :orderId")
     Optional<Order> findByIdWithItems(@Param("orderId") Long orderId);
 
+    // 전체 주문 목록 (어드민) — OrderItem/Product를 함께 조회해 N+1 방지
+    // 컬렉션 fetch join + DISTINCT로 Order 중복 제거
+    @Query("SELECT DISTINCT o FROM Order o " +
+            "JOIN FETCH o.orderItems oi " +
+            "JOIN FETCH oi.product " +
+            "ORDER BY o.createdDate DESC")
+    List<Order> findAllWithItems();
+
     /**
      * 만료된 PENDING 주문 조회 — 결제 미완료 주문 자동 취소 스케줄러용
      *

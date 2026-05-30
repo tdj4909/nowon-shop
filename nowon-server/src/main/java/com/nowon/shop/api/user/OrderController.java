@@ -54,17 +54,21 @@ public class OrderController {
     @Operation(summary = "Get order detail")
     @GetMapping("/{orderId}")
     public ResponseEntity<ApiResponse<OrderResponseDTO>> getOrderDetail(
+            @AuthenticationPrincipal String email,
             @Parameter(description = "Order ID") @PathVariable Long orderId
     ) {
-        return ResponseEntity.ok(ApiResponse.ok(OrderResponseDTO.from(orderService.getOrderDetail(orderId))));
+        Long memberId = memberService.findByEmail(email).getId();
+        return ResponseEntity.ok(ApiResponse.ok(OrderResponseDTO.from(orderService.getOrderDetail(memberId, orderId))));
     }
 
-    @Operation(summary = "Cancel order", description = "Cancels an order. Only PENDING or ORDER status can be cancelled.")
+    @Operation(summary = "Cancel order", description = "Cancels an order. Only PENDING or PAID status can be cancelled. Only the order owner may cancel.")
     @PatchMapping("/{orderId}/cancel")
     public ResponseEntity<ApiResponse<Void>> cancelOrder(
+            @AuthenticationPrincipal String email,
             @Parameter(description = "Order ID") @PathVariable Long orderId
     ) {
-        orderService.cancelOrder(orderId);
+        Long memberId = memberService.findByEmail(email).getId();
+        orderService.cancelOrder(memberId, orderId);
         return ResponseEntity.ok(ApiResponse.ok("주문이 취소되었습니다."));
     }
 }

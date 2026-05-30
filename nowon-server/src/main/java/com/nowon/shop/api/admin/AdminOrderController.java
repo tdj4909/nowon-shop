@@ -32,11 +32,11 @@ public class AdminOrderController {
     @Operation(summary = "Get order detail")
     @GetMapping("/{orderId}")
     public ResponseEntity<ApiResponse<AdminOrderDTO>> getOrderDetail(@PathVariable Long orderId) {
-        AdminOrderDTO order = AdminOrderDTO.from(orderService.getOrderDetail(orderId));
+        AdminOrderDTO order = AdminOrderDTO.from(orderService.getOrderDetailByAdmin(orderId));
         return ResponseEntity.ok(ApiResponse.ok(order));
     }
 
-    @Operation(summary = "Update order status", description = "Progresses an order through statuses: PENDING → ORDER → DELIVERING → COMPLETE.")
+    @Operation(summary = "Update order status", description = "Updates the order status (PENDING / PAID / SHIPPED / DELIVERED / CANCELLED).")
     @PatchMapping("/{orderId}/status")
     public ResponseEntity<ApiResponse<Void>> updateOrderStatus(
             @PathVariable Long orderId,
@@ -49,7 +49,7 @@ public class AdminOrderController {
     @Operation(summary = "Cancel order")
     @PatchMapping("/{orderId}/cancel")
     public ResponseEntity<ApiResponse<Void>> cancelOrder(@PathVariable Long orderId) {
-        orderService.cancelOrder(orderId);
+        orderService.cancelOrderByAdmin(orderId);
         return ResponseEntity.ok(ApiResponse.ok("주문이 취소되었습니다."));
     }
 }

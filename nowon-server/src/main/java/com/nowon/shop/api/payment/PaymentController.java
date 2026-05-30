@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,10 +21,13 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    @Operation(summary = "Create payment intent", description = "Creates a Stripe PaymentIntent for the given order and returns clientSecret.")
+    @Operation(summary = "Create payment intent", description = "Creates a Stripe PaymentIntent for the given order and returns clientSecret. Only the order owner may pay, and only PENDING orders are payable.")
     @PostMapping("/intent/{orderId}")
-    public ResponseEntity<ApiResponse<String>> createPaymentIntent(@PathVariable Long orderId) {
-        String clientSecret = paymentService.createPaymentIntent(orderId);
+    public ResponseEntity<ApiResponse<String>> createPaymentIntent(
+            @AuthenticationPrincipal String email,
+            @PathVariable Long orderId
+    ) {
+        String clientSecret = paymentService.createPaymentIntent(orderId, email);
         return ResponseEntity.ok(ApiResponse.data(clientSecret));
     }
 

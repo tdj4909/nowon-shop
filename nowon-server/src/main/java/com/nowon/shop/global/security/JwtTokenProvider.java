@@ -24,8 +24,9 @@ public class JwtTokenProvider {
 
     private SecretKey secretKey;
 
-    // 토큰 유효시간 (1시간)
-    private final long tokenValidTime = 1000L * 60 * 60;
+    // 토큰 유효시간 — application.yaml에서 주입 (기본 1시간)
+    @Value("${jwt.token-validity-ms:3600000}")
+    private long tokenValidTime;
 
     @PostConstruct
     protected void init() {
