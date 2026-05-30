@@ -59,7 +59,9 @@ export default function ProductListPage() {
   const [totalElements, setTotalElements] = useState(0)
 
   useEffect(() => {
-    getCategories().then((res) => setCategories(res.data))
+    getCategories()
+      .then((res) => setCategories(res.data))
+      .catch(() => setCategories([])) // 카테고리 로드 실패 시 필터 바만 숨김 (페이지는 정상 동작)
   }, [])
 
   const fetchProducts = useCallback(() => {

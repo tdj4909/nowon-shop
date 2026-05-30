@@ -57,6 +57,10 @@ export default function LandingPage() {
     ]).then(([productsRes, categoriesRes]) => {
       setNewProducts(productsRes.data.content)
       setCategories(categoriesRes.data.slice(0, 6))
+    }).catch(() => {
+      // 랜딩 데이터 로드 실패 시 빈 섹션으로 표시 (전체 페이지 크래시 방지)
+      setNewProducts([])
+      setCategories([])
     }).finally(() => setLoading(false))
   }, [])
 

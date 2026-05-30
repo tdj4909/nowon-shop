@@ -5,7 +5,9 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { createPaymentIntent } from '../api/payments'
 
 // Vite env는 모듈 로드 시점에 이미 주입되므로 모듈 레벨 초기화 안전
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string)
+// 키가 없으면 loadStripe(null)로 처리해 아래 CheckoutPage에서 명시적 안내
+const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY as string | undefined
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null
 
 // ── 결제 폼 ───────────────────────────────────────────────────────────
 function CheckoutForm({ orderId }: { orderId: number }) {
@@ -77,6 +79,12 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!orderId) return
+    // Stripe 키 미설정 시 결제 초기화 자체가 불가 — 조기에 안내
+    if (!stripePromise) {
+      setError('결제 설정이 올바르지 않습니다. 잠시 후 다시 시도해주세요.')
+      setLoading(false)
+      return
+    }
     createPaymentIntent(Number(orderId))
       .then((res) => setClientSecret(res.data))
       .catch(() => setError('결제 정보를 불러오는 데 실패했습니다.'))
