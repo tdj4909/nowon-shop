@@ -4,11 +4,12 @@ import { useCart } from '../store/CartContext'
 
 export default function Header() {
   const { isLoggedIn, logout } = useAuth()
-  const { totalCount } = useCart()
+  const { totalCount, clearCart } = useCart()
   const navigate = useNavigate()
 
   const handleLogout = () => {
     logout()
+    clearCart() // 다른 계정으로 로그인 시 이전 장바구니가 남지 않도록 비움
     navigate('/login')
   }
 

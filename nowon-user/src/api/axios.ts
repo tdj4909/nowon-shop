@@ -52,9 +52,17 @@ api.interceptors.response.use(
   },
   (error) => {
     // 401: 토큰 만료 또는 미인증 → 자동 로그아웃
-    if (error.response?.status === 401) {
+    // 단, 로그인/회원가입 요청의 401은 자격증명 오류이므로 리다이렉트하지 않고
+    // 페이지에서 직접 에러 메시지를 표시하도록 그대로 전달한다.
+    const requestUrl: string = error.config?.url ?? ''
+    const isAuthRequest = requestUrl.includes('/api/auth/')
+
+    if (error.response?.status === 401 && !isAuthRequest) {
       localStorage.removeItem('accessToken')
-      window.location.href = '/login'
+      // 이미 로그인 페이지가 아닌 경우에만 이동 (불필요한 리로드 방지)
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
       return Promise.reject(error)
     }
 

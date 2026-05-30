@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { getMyOrders, cancelOrder } from '../api/orders'
 import type { Order } from '../api/orders'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  PENDING:    { label: '결제대기',  color: 'bg-yellow-100 text-yellow-700' },
-  ORDER:      { label: '주문완료',  color: 'bg-indigo-100 text-indigo-700' },
-  DELIVERING: { label: '배송중',   color: 'bg-blue-100 text-blue-700' },
-  COMPLETE:   { label: '배송완료', color: 'bg-green-100 text-green-700' },
-  CANCELLED:  { label: '취소됨',   color: 'bg-red-100 text-red-600' },
-  CANCEL:     { label: '취소됨',   color: 'bg-red-100 text-red-600' },
+  PENDING:   { label: '결제대기', color: 'bg-yellow-100 text-yellow-700' },
+  PAID:      { label: '결제완료', color: 'bg-indigo-100 text-indigo-700' },
+  SHIPPED:   { label: '배송중',   color: 'bg-blue-100 text-blue-700' },
+  DELIVERED: { label: '배송완료', color: 'bg-green-100 text-green-700' },
+  CANCELLED: { label: '취소됨',   color: 'bg-red-100 text-red-600' },
 }
 
-const CANCELLABLE = ['PENDING', 'ORDER']
+// 백엔드 Order.cancel()은 SHIPPED/DELIVERED만 취소 불가 → PENDING/PAID만 취소 가능
+const CANCELLABLE = ['PENDING', 'PAID']
 
 export default function MyOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
@@ -19,10 +20,23 @@ export default function MyOrdersPage() {
   const [error, setError] = useState('')
   const [cancellingId, setCancellingId] = useState<number | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
     fetchOrders()
   }, [])
+
+  // 결제 완료 후 Stripe가 /orders?paid={orderId}로 리다이렉트 — 안내 표시
+  // 실제 상태 변경은 Webhook으로 처리되므로 일시적으로 PENDING일 수 있음
+  useEffect(() => {
+    if (searchParams.get('paid')) {
+      setToast({ message: '결제가 완료되었습니다. 주문 상태는 잠시 후 반영됩니다.', type: 'success' })
+      setTimeout(() => setToast(null), 3000)
+      // 쿼리파라미터 제거 (새로고침 시 중복 토스트 방지)
+      searchParams.delete('paid')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
 
   const fetchOrders = () => {
     setLoading(true)
