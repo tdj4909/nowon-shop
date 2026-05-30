@@ -3,30 +3,17 @@ import { Link } from 'react-router-dom'
 import { getProducts, getCategories } from '../api/products'
 import type { Product } from '../api/products'
 import { useAuth } from '../store/AuthContext'
+import { formatPrice } from '../utils/format'
+import ProductImage from '../components/ui/ProductImage'
 
 function ProductCard({ product }: { product: Product }) {
-  const [imgError, setImgError] = useState(false)
-
   return (
     <Link
       to={`/products/${product.id}`}
       className="group bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200"
     >
       <div className="relative overflow-hidden h-44">
-        {product.imageUrl && !imgError ? (
-          <img
-            src={product.imageUrl}
-            alt={product.name}
-            onError={() => setImgError(true)}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center gap-2 group-hover:from-indigo-50 group-hover:to-indigo-100 transition-colors duration-300">
-            <svg className="w-8 h-8 text-gray-300 group-hover:text-indigo-300 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10" />
-            </svg>
-          </div>
-        )}
+        <ProductImage imageUrl={product.imageUrl} name={product.name} iconClassName="w-8 h-8" zoomOnHover />
         {product.stock === 0 && (
           <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
             <span className="text-white text-xs font-semibold tracking-widest">SOLD OUT</span>
@@ -38,7 +25,7 @@ function ProductCard({ product }: { product: Product }) {
           <p className="text-xs text-indigo-500 font-medium mb-1">{product.category}</p>
         )}
         <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
-        <p className="text-sm font-bold text-gray-800 mt-1.5">{product.price.toLocaleString()}원</p>
+        <p className="text-sm font-bold text-gray-800 mt-1.5">{formatPrice(product.price)}</p>
       </div>
     </Link>
   )

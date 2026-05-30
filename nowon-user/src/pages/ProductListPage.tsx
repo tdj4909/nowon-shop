@@ -2,6 +2,10 @@ import { useEffect, useState, useCallback } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { getProducts, getCategories } from '../api/products'
 import type { Product } from '../api/products'
+import { formatPrice } from '../utils/format'
+import ProductImage from '../components/ui/ProductImage'
+import StatePlaceholder from '../components/ui/StatePlaceholder'
+import { AlertIcon, BoxIcon } from '../components/ui/icons'
 
 const PAGE_SIZE = 8
 
@@ -14,30 +18,6 @@ function ProductSkeleton() {
         <div className="h-4 bg-gray-100 rounded w-3/4" />
         <div className="h-4 bg-gray-100 rounded w-1/2" />
       </div>
-    </div>
-  )
-}
-
-function ProductImage({ imageUrl, name }: { imageUrl: string | null; name: string }) {
-  const [imgError, setImgError] = useState(false)
-
-  if (imageUrl && !imgError) {
-    return (
-      <img
-        src={imageUrl}
-        alt={name}
-        onError={() => setImgError(true)}
-        className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-      />
-    )
-  }
-
-  return (
-    <div className="bg-gradient-to-br from-gray-50 to-gray-100 h-48 flex flex-col items-center justify-center gap-2 group-hover:from-indigo-50 group-hover:to-indigo-100 transition-colors duration-300">
-      <svg className="w-10 h-10 text-gray-300 group-hover:text-indigo-300 transition-colors duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10" />
-      </svg>
-      <span className="text-xs text-gray-300 group-hover:text-indigo-300 transition-colors duration-300">No Image</span>
     </div>
   )
 }
@@ -102,14 +82,7 @@ export default function ProductListPage() {
   }
 
   if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <svg className="w-12 h-12 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-        </svg>
-        <p className="text-gray-500">{error}</p>
-      </div>
-    )
+    return <StatePlaceholder icon={<AlertIcon className="w-12 h-12 text-red-300" />} message={error} />
   }
 
   return (
@@ -171,12 +144,11 @@ export default function ProductListPage() {
           {Array.from({ length: PAGE_SIZE }).map((_, i) => <ProductSkeleton key={i} />)}
         </div>
       ) : products.length === 0 ? (
-        <div className="flex flex-col items-center justify-center min-h-[30vh] gap-3">
-          <svg className="w-16 h-16 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10" />
-          </svg>
-          <p className="text-gray-400">검색 결과가 없습니다.</p>
-        </div>
+        <StatePlaceholder
+          icon={<BoxIcon className="w-16 h-16 text-gray-200" />}
+          message="검색 결과가 없습니다."
+          minHeight="min-h-[30vh]"
+        />
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
           {products.map((product) => (
@@ -185,8 +157,8 @@ export default function ProductListPage() {
               key={product.id}
               className="group border border-gray-100 rounded-2xl overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 bg-white"
             >
-              <div className="relative overflow-hidden">
-                <ProductImage imageUrl={product.imageUrl} name={product.name} />
+              <div className="relative overflow-hidden h-48">
+                <ProductImage imageUrl={product.imageUrl} name={product.name} zoomOnHover />
                 {product.stock === 0 && (
                   <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                     <span className="text-white text-sm font-semibold tracking-wider">SOLD OUT</span>
@@ -198,7 +170,7 @@ export default function ProductListPage() {
                   <p className="text-xs text-indigo-500 font-medium mb-1">{product.category}</p>
                 )}
                 <p className="text-sm font-semibold text-gray-900 truncate leading-snug">{product.name}</p>
-                <p className="text-sm font-bold text-gray-800 mt-2">{product.price.toLocaleString()}원</p>
+                <p className="text-sm font-bold text-gray-800 mt-2">{formatPrice(product.price)}</p>
               </div>
             </Link>
           ))}

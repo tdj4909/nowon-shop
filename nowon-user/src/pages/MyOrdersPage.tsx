@@ -2,6 +2,11 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { getMyOrders, cancelOrder } from '../api/orders'
 import type { Order } from '../api/orders'
+import { useToast } from '../hooks/useToast'
+import { getErrorMessage, formatPrice } from '../utils/format'
+import Toast from '../components/ui/Toast'
+import StatePlaceholder from '../components/ui/StatePlaceholder'
+import { AlertIcon, BoxIcon } from '../components/ui/icons'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   PENDING:   { label: '결제대기', color: 'bg-yellow-100 text-yellow-700' },
@@ -19,7 +24,7 @@ export default function MyOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [cancellingId, setCancellingId] = useState<number | null>(null)
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const { toast, showToast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
 
   useEffect(() => {
@@ -30,13 +35,12 @@ export default function MyOrdersPage() {
   // 실제 상태 변경은 Webhook으로 처리되므로 일시적으로 PENDING일 수 있음
   useEffect(() => {
     if (searchParams.get('paid')) {
-      setToast({ message: '결제가 완료되었습니다. 주문 상태는 잠시 후 반영됩니다.', type: 'success' })
-      setTimeout(() => setToast(null), 3000)
+      showToast('결제가 완료되었습니다. 주문 상태는 잠시 후 반영됩니다.', 'success')
       // 쿼리파라미터 제거 (새로고침 시 중복 토스트 방지)
       searchParams.delete('paid')
       setSearchParams(searchParams, { replace: true })
     }
-  }, [searchParams, setSearchParams])
+  }, [searchParams, setSearchParams, showToast])
 
   const fetchOrders = () => {
     setLoading(true)
@@ -44,11 +48,6 @@ export default function MyOrdersPage() {
       .then((res) => setOrders(res.data))
       .catch(() => setError('주문 내역을 불러오는 데 실패했습니다.'))
       .finally(() => setLoading(false))
-  }
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 2500)
   }
 
   const handleCancel = async (orderId: number) => {
@@ -60,8 +59,7 @@ export default function MyOrdersPage() {
       fetchOrders()
     } catch (err) {
       // "배송 중인 주문은 취소할 수 없습니다" 같은 구체적 이유를 표시
-      const message = err instanceof Error ? err.message : ''
-      showToast(message || '주문 취소에 실패했습니다.', 'error')
+      showToast(getErrorMessage(err, '주문 취소에 실패했습니다.'), 'error')
     } finally {
       setCancellingId(null)
     }
@@ -88,25 +86,12 @@ export default function MyOrdersPage() {
   }
 
   if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <svg className="w-12 h-12 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-        </svg>
-        <p className="text-gray-500">{error}</p>
-      </div>
-    )
+    return <StatePlaceholder icon={<AlertIcon className="w-12 h-12 text-red-300" />} message={error} />
   }
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
-      {toast && (
-        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl text-sm font-medium shadow-lg text-white z-50 ${
-          toast.type === 'success' ? 'bg-gray-900' : 'bg-red-500'
-        }`}>
-          {toast.message}
-        </div>
-      )}
+      <Toast toast={toast} />
 
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-gray-900">내 주문 내역</h1>
@@ -114,12 +99,15 @@ export default function MyOrdersPage() {
       </div>
 
       {orders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center min-h-[40vh] gap-3">
-          <svg className="w-16 h-16 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          <p className="text-gray-400">주문 내역이 없습니다.</p>
-        </div>
+        <StatePlaceholder
+          icon={
+            <svg className="w-16 h-16 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+          }
+          message="주문 내역이 없습니다."
+          minHeight="min-h-[40vh]"
+        />
       ) : (
         <div className="space-y-4">
           {orders.map((order) => {
@@ -154,18 +142,16 @@ export default function MyOrdersPage() {
                   {order.orderItems.map((item, idx) => (
                     <li key={idx} className="flex items-center justify-between text-sm">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                          <svg className="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10" />
-                          </svg>
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-gray-300">
+                          <BoxIcon className="w-4 h-4" />
                         </div>
                         <div>
                           <p className="font-medium text-gray-800">{item.productName}</p>
-                          <p className="text-xs text-gray-400">{item.orderPrice.toLocaleString()}원 × {item.quantity}</p>
+                          <p className="text-xs text-gray-400">{formatPrice(item.orderPrice)} × {item.quantity}</p>
                         </div>
                       </div>
                       <span className="font-semibold text-gray-700">
-                        {(item.orderPrice * item.quantity).toLocaleString()}원
+                        {formatPrice(item.orderPrice * item.quantity)}
                       </span>
                     </li>
                   ))}
@@ -174,7 +160,7 @@ export default function MyOrdersPage() {
                 {/* 합계 */}
                 <div className="border-t border-gray-100 pt-3 flex justify-between items-center">
                   <span className="text-sm text-gray-500">총 결제금액</span>
-                  <span className="text-base font-bold text-indigo-600">{order.totalPrice.toLocaleString()}원</span>
+                  <span className="text-base font-bold text-indigo-600">{formatPrice(order.totalPrice)}</span>
                 </div>
               </div>
             )

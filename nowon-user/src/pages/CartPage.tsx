@@ -3,31 +3,17 @@ import { useNavigate } from 'react-router-dom'
 import { useCart } from '../store/CartContext'
 import { useAuth } from '../store/AuthContext'
 import { createOrderMultiple } from '../api/orders'
-
-type ToastState = { message: string; type: 'success' | 'error' } | null
-
-function Toast({ toast }: { toast: ToastState }) {
-  if (!toast) return null
-  return (
-    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl text-sm font-medium shadow-lg text-white z-50 ${
-      toast.type === 'success' ? 'bg-gray-900' : 'bg-red-500'
-    }`}>
-      {toast.message}
-    </div>
-  )
-}
+import { useToast } from '../hooks/useToast'
+import { getErrorMessage, formatPrice } from '../utils/format'
+import Toast from '../components/ui/Toast'
+import ProductImage from '../components/ui/ProductImage'
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, clearCart, totalCount } = useCart()
   const { isLoggedIn } = useAuth()
   const navigate = useNavigate()
   const [ordering, setOrdering] = useState(false)
-  const [toast, setToast] = useState<ToastState>(null)
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 2500)
-  }
+  const { toast, showToast } = useToast()
 
   const totalPrice = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
@@ -48,8 +34,7 @@ export default function CartPage() {
       clearCart()
       navigate(`/checkout/${orderId}`)
     } catch (err) {
-      const message = err instanceof Error ? err.message : ''
-      showToast(message || '주문에 실패했습니다. 다시 시도해주세요.', 'error')
+      showToast(getErrorMessage(err, '주문에 실패했습니다. 다시 시도해주세요.'), 'error')
     } finally {
       setOrdering(false)
     }
@@ -82,21 +67,13 @@ export default function CartPage() {
           <ul className="space-y-3">
             {items.map((item) => (
               <li key={item.productId} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-4 shadow-sm">
-                <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <svg className="w-7 h-7 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10" />
-                      </svg>
-                    </div>
-                  )}
+                <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0">
+                  <ProductImage imageUrl={item.imageUrl} name={item.productName} iconClassName="w-7 h-7" />
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-800 truncate">{item.productName}</p>
-                  <p className="text-sm text-indigo-600 font-semibold">{item.price.toLocaleString()}원</p>
+                  <p className="text-sm text-indigo-600 font-semibold">{formatPrice(item.price)}</p>
                 </div>
 
                 <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden bg-white">
@@ -121,7 +98,7 @@ export default function CartPage() {
 
                 <div className="text-right flex-shrink-0">
                   <p className="font-semibold text-gray-800 text-sm">
-                    {(item.price * item.quantity).toLocaleString()}원
+                    {formatPrice(item.price * item.quantity)}
                   </p>
                   <button
                     onClick={() => removeItem(item.productId)}
@@ -137,14 +114,14 @@ export default function CartPage() {
           <div className="bg-gray-50 rounded-2xl p-5 space-y-4">
             <div className="flex justify-between text-sm text-gray-500">
               <span>상품 {totalCount}개</span>
-              <span className="font-bold text-gray-900 text-base">{totalPrice.toLocaleString()}원</span>
+              <span className="font-bold text-gray-900 text-base">{formatPrice(totalPrice)}</span>
             </div>
             <button
               onClick={handleOrder}
               disabled={ordering}
               className="w-full py-3.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors text-sm"
             >
-              {ordering ? '주문 생성 중...' : `${totalPrice.toLocaleString()}원 결제하기`}
+              {ordering ? '주문 생성 중...' : `${formatPrice(totalPrice)} 결제하기`}
             </button>
             {!isLoggedIn && (
               <p className="text-center text-xs text-gray-400">로그인 후 주문할 수 있습니다.</p>

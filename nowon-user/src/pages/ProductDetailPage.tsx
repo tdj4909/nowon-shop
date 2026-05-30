@@ -5,47 +5,12 @@ import type { Product } from '../api/products'
 import { createOrder } from '../api/orders'
 import { useAuth } from '../store/AuthContext'
 import { useCart } from '../store/CartContext'
-
-type ToastType = 'success' | 'error'
-
-function Toast({ message, type }: { message: string; type: ToastType }) {
-  return (
-    <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-xl text-sm font-medium shadow-lg text-white z-50 transition-all ${
-      type === 'success' ? 'bg-gray-900' : 'bg-red-500'
-    }`}>
-      {message}
-    </div>
-  )
-}
-
-function ProductDetailImage({ imageUrl, name, isSoldOut }: { imageUrl: string | null; name: string; isSoldOut: boolean }) {
-  const [imgError, setImgError] = useState(false)
-
-  return (
-    <div className="relative rounded-2xl overflow-hidden mb-10 bg-gradient-to-br from-gray-50 to-gray-100" style={{ aspectRatio: '4/3' }}>
-      {imageUrl && !imgError ? (
-        <img
-          src={imageUrl}
-          alt={name}
-          onError={() => setImgError(true)}
-          className="w-full h-full object-cover"
-        />
-      ) : (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-          <svg className="w-16 h-16 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M20 7l-8-4-8 4m16 0v10l-8 4m0-10L4 7m8 4v10" />
-          </svg>
-          <span className="text-sm text-gray-300">No Image</span>
-        </div>
-      )}
-      {isSoldOut && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-          <span className="text-white text-lg font-bold tracking-widest">SOLD OUT</span>
-        </div>
-      )}
-    </div>
-  )
-}
+import { useToast } from '../hooks/useToast'
+import { getErrorMessage, formatPrice } from '../utils/format'
+import Toast from '../components/ui/Toast'
+import ProductImage from '../components/ui/ProductImage'
+import StatePlaceholder from '../components/ui/StatePlaceholder'
+import { AlertIcon } from '../components/ui/icons'
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -54,7 +19,7 @@ export default function ProductDetailPage() {
   const [loading, setLoading] = useState(true)
   const [ordering, setOrdering] = useState(false)
   const [error, setError] = useState('')
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null)
+  const { toast, showToast } = useToast()
   const { isLoggedIn } = useAuth()
   const { addItem } = useCart()
   const navigate = useNavigate()
@@ -66,11 +31,6 @@ export default function ProductDetailPage() {
       .catch(() => setError('상품을 불러오는 데 실패했습니다.'))
       .finally(() => setLoading(false))
   }, [id])
-
-  const showToast = (message: string, type: ToastType) => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 2500)
-  }
 
   const handleAddToCart = () => {
     if (!product) return
@@ -93,11 +53,9 @@ export default function ProductDetailPage() {
     setOrdering(true)
     try {
       const res = await createOrder(product.id, quantity)
-      const orderId = res.data
-      navigate(`/checkout/${orderId}`)
+      navigate(`/checkout/${res.data}`)
     } catch (err) {
-      const message = err instanceof Error ? err.message : ''
-      showToast(message || '주문에 실패했습니다. 다시 시도해주세요.', 'error')
+      showToast(getErrorMessage(err, '주문에 실패했습니다. 다시 시도해주세요.'), 'error')
     } finally {
       setOrdering(false)
     }
@@ -119,14 +77,7 @@ export default function ProductDetailPage() {
   }
 
   if (error || !product) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-        <svg className="w-12 h-12 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-        </svg>
-        <p className="text-gray-500">{error || '상품을 찾을 수 없습니다.'}</p>
-      </div>
-    )
+    return <StatePlaceholder icon={<AlertIcon className="w-12 h-12 text-red-300" />} message={error || '상품을 찾을 수 없습니다.'} />
   }
 
   const isSoldOut = product.stock === 0
@@ -134,7 +85,7 @@ export default function ProductDetailPage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
-      {toast && <Toast message={toast.message} type={toast.type} />}
+      <Toast toast={toast} />
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-indigo-600 mb-8 transition-colors"
@@ -145,7 +96,15 @@ export default function ProductDetailPage() {
         목록으로
       </button>
 
-      <ProductDetailImage imageUrl={product.imageUrl} name={product.name} isSoldOut={isSoldOut} />
+      {/* 상품 이미지 */}
+      <div className="relative rounded-2xl overflow-hidden mb-10" style={{ aspectRatio: '4/3' }}>
+        <ProductImage imageUrl={product.imageUrl} name={product.name} iconClassName="w-16 h-16" />
+        {isSoldOut && (
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <span className="text-white text-lg font-bold tracking-widest">SOLD OUT</span>
+          </div>
+        )}
+      </div>
 
       {/* 상품 정보 */}
       <div className="space-y-2 mb-8">
@@ -153,7 +112,7 @@ export default function ProductDetailPage() {
           <p className="text-sm text-indigo-500 font-medium">{product.category}</p>
         )}
         <h1 className="text-2xl font-bold text-gray-900">{product.name}</h1>
-        <p className="text-2xl font-bold text-indigo-600">{product.price.toLocaleString()}원</p>
+        <p className="text-2xl font-bold text-indigo-600">{formatPrice(product.price)}</p>
         <p className="text-sm text-gray-400">
           재고 <span className={product.stock <= 5 && product.stock > 0 ? 'text-orange-500 font-medium' : 'text-gray-500'}>
             {product.stock}개
@@ -193,7 +152,7 @@ export default function ProductDetailPage() {
         </div>
         <div className="flex items-center justify-between text-sm">
           <span className="text-gray-500">총 금액</span>
-          <span className="text-lg font-bold text-gray-900">{totalPrice.toLocaleString()}원</span>
+          <span className="text-lg font-bold text-gray-900">{formatPrice(totalPrice)}</span>
         </div>
 
         {/* 버튼 2개: 장바구니 + 바로 주문 */}
