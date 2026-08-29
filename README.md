@@ -2,14 +2,9 @@
 
 > Full-stack e-commerce application built as a portfolio project for backend developer positions in Japan.
 
-**Live Demo**
+**Demo status**
 
-| Service | URL |
-|---|---|
-| Customer Storefront | https://nowon-shop.vercel.app |
-| Admin Dashboard | https://nowon-shop-iexs.vercel.app |
-| REST API | https://nowon-shop-production.up.railway.app |
-| API Docs (Swagger) | https://nowon-shop-production.up.railway.app/swagger-ui/index.html |
+The hosted demo is offline — the Railway backend and its MySQL instance were shut down to avoid running an unmonitored public service. Nothing about the application changed; it runs from this repository, including the Stripe payment flow in test mode. See [Getting Started](#getting-started).
 
 ---
 
