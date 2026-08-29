@@ -16,14 +16,17 @@ import com.stripe.exception.SignatureVerificationException;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
+import com.stripe.model.Refund;
 import com.stripe.net.Webhook;
 import com.stripe.param.PaymentIntentCreateParams;
+import com.stripe.param.RefundCreateParams;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 
@@ -85,6 +88,30 @@ public class PaymentService {
     }
 
     /**
+     * Stripe 환불 요청 — 결제 완료 주문을 취소할 때 호출한다.
+     *
+     * 실패 시 예외를 던져 호출 측 트랜잭션을 롤백시킨다.
+     * (환불되지 않은 주문이 CANCELLED로 커밋되는 상황을 막기 위함)
+     */
+    public void refund(String paymentIntentId) {
+        if (!StringUtils.hasText(paymentIntentId)) {
+            // 결제 수단 정보가 없으면 자동 환불이 불가능하므로, 조용히 취소시키지 않고 실패시킨다.
+            log.error("환불 불가 — PaymentIntent id가 없는 결제 완료 주문");
+            throw new BusinessException(ErrorCode.PAYMENT_REFUND_UNAVAILABLE);
+        }
+
+        try {
+            Refund.create(RefundCreateParams.builder()
+                    .setPaymentIntent(paymentIntentId)
+                    .build());
+            log.info("Stripe 환불 완료 — paymentIntentId={}", paymentIntentId);
+        } catch (StripeException e) {
+            log.error("Stripe 환불 실패 — paymentIntentId={}, message={}", paymentIntentId, e.getMessage());
+            throw new BusinessException(ErrorCode.PAYMENT_REFUND_FAILED);
+        }
+    }
+
+    /**
      * Stripe Webhook 처리 — 멱등성 보장
      *
      * Stripe는 동일 이벤트를 재전송할 수 있으므로 event.getId() 기반으로 중복 처리를 차단한다.
@@ -110,8 +137,9 @@ public class PaymentService {
         }
 
         // getDataObjectDeserializer()는 API 버전 불일치 시 비어있을 수 있으므로
-        // raw JSON에서 직접 orderId를 추출 — API 버전에 무관하게 동작
-        String orderIdStr = extractOrderIdFromRawJson(payloadStr);
+        // raw JSON에서 직접 값을 추출 — API 버전에 무관하게 동작
+        JsonObject dataObject = parseDataObject(payloadStr);
+        String orderIdStr = extractOrderId(dataObject);
         if (orderIdStr == null) {
             log.warn("Webhook에서 orderId를 찾을 수 없음: eventType={}", event.getType());
             // orderId 없는 이벤트도 처리 이력에 남겨 재시도 방지
@@ -122,14 +150,8 @@ public class PaymentService {
         Long orderId = Long.parseLong(orderIdStr);
 
         switch (event.getType()) {
-            case "payment_intent.succeeded" -> {
-                updateOrderStatus(orderId, OrderStatus.PAID);
-                log.info("결제 완료 — orderId: {}", orderId);
-            }
-            case "payment_intent.payment_failed" -> {
-                updateOrderStatus(orderId, OrderStatus.CANCELLED);
-                log.warn("결제 실패 — orderId: {}", orderId);
-            }
+            case "payment_intent.succeeded" -> handlePaymentSucceeded(orderId, extractPaymentIntentId(dataObject));
+            case "payment_intent.payment_failed" -> handlePaymentFailed(orderId);
             default -> log.debug("미처리 Webhook 이벤트: {}", event.getType());
         }
 
@@ -137,33 +159,93 @@ public class PaymentService {
         saveProcessedEvent(event);
     }
 
+    /**
+     * 결제 성공 처리 — 현재 상태를 확인한 뒤에만 전이한다.
+     *
+     * 무조건 PAID로 덮어쓰면, 만료 정리 스케줄러가 이미 취소하고 재고까지 되돌린 주문이
+     * 뒤늦게 도착한 결제로 되살아나 대금은 받았는데 재고는 이중 계상된 주문이 된다.
+     * 이미 취소된 주문은 이행할 수 없으므로 즉시 환불한다.
+     */
+    private void handlePaymentSucceeded(Long orderId, String paymentIntentId) {
+        Order order = orderRepository.findByIdWithItems(orderId).orElse(null);
+        if (order == null) {
+            log.warn("Webhook — 주문을 찾을 수 없음: orderId={}", orderId);
+            return;
+        }
+
+        switch (order.getStatus()) {
+            case PENDING -> {
+                order.markPaid(paymentIntentId);
+                log.info("결제 완료 — orderId={}, paymentIntentId={}", orderId, paymentIntentId);
+            }
+            case PAID -> log.info("이미 결제 완료된 주문 — 무시. orderId={}", orderId);
+            case CANCELLED -> {
+                // 취소 후 결제가 도착한 경우 — 재고는 이미 복구되어 이행할 수 없다.
+                log.error("취소된 주문에 결제 성공 도착 — 자동 환불 시도. orderId={}, paymentIntentId={}",
+                        orderId, paymentIntentId);
+                refund(paymentIntentId);
+            }
+            default -> log.warn("결제 성공 Webhook — 전이 대상이 아닌 상태. orderId={}, status={}",
+                    orderId, order.getStatus());
+        }
+    }
+
+    /**
+     * 결제 실패 처리 — 주문을 취소하고 차감했던 재고를 되돌린다.
+     *
+     * 재고 복구를 빠뜨리면 만료 정리 스케줄러는 PENDING만 대상으로 하므로
+     * 이 주문의 재고는 영구히 회수되지 않는다.
+     */
+    private void handlePaymentFailed(Long orderId) {
+        Order order = orderRepository.findByIdWithItems(orderId).orElse(null);
+        if (order == null) {
+            log.warn("Webhook — 주문을 찾을 수 없음: orderId={}", orderId);
+            return;
+        }
+
+        // PENDING이 아니면 이미 다른 경로에서 재고가 복구되었으므로 중복 복구를 막는다.
+        if (order.getStatus() != OrderStatus.PENDING) {
+            log.info("결제 실패 Webhook — PENDING이 아니므로 무시. orderId={}, status={}",
+                    orderId, order.getStatus());
+            return;
+        }
+
+        order.updateStatus(OrderStatus.CANCELLED);
+        order.restoreStock();
+        log.warn("결제 실패로 주문 취소 및 재고 복구 — orderId={}", orderId);
+    }
+
     private void saveProcessedEvent(Event event) {
         processedEventRepository.save(new ProcessedStripeEvent(event.getId(), event.getType()));
     }
 
     /**
-     * raw JSON payload에서 data.object.metadata.orderId 추출
+     * raw JSON payload에서 data.object를 꺼낸다.
      * Stripe SDK의 getDataObjectDeserializer()는 API 버전이 SDK와 다를 때 비어있을 수 있음
      */
-    private String extractOrderIdFromRawJson(String payloadStr) {
+    private JsonObject parseDataObject(String payloadStr) {
         try {
-            JsonObject root = JsonParser.parseString(payloadStr).getAsJsonObject();
-            JsonObject dataObject = root.getAsJsonObject("data").getAsJsonObject("object");
-            JsonObject metadata = dataObject.getAsJsonObject("metadata");
-            if (metadata == null || !metadata.has("orderId")) return null;
-            return metadata.get("orderId").getAsString();
+            return JsonParser.parseString(payloadStr)
+                    .getAsJsonObject()
+                    .getAsJsonObject("data")
+                    .getAsJsonObject("object");
         } catch (Exception e) {
             log.error("Webhook JSON 파싱 실패: {}", e.getMessage());
             return null;
         }
     }
 
-    private void updateOrderStatus(Long orderId, OrderStatus status) {
-        Order order = orderRepository.findById(orderId).orElse(null);
-        if (order == null) {
-            log.warn("Webhook — 주문을 찾을 수 없음: orderId={}", orderId);
-            return;
-        }
-        order.updateStatus(status);
+    /** data.object.metadata.orderId — PaymentIntent 생성 시 넣어둔 값 */
+    private String extractOrderId(JsonObject dataObject) {
+        if (dataObject == null) return null;
+        JsonObject metadata = dataObject.getAsJsonObject("metadata");
+        if (metadata == null || !metadata.has("orderId")) return null;
+        return metadata.get("orderId").getAsString();
+    }
+
+    /** data.object.id — payment_intent.* 이벤트에서는 PaymentIntent id(pi_...) */
+    private String extractPaymentIntentId(JsonObject dataObject) {
+        if (dataObject == null || !dataObject.has("id")) return null;
+        return dataObject.get("id").getAsString();
     }
 }

@@ -7,6 +7,7 @@ import com.nowon.shop.domain.order.entity.Order;
 import com.nowon.shop.domain.order.entity.OrderItem;
 import com.nowon.shop.domain.order.entity.OrderStatus;
 import com.nowon.shop.domain.order.repository.OrderRepository;
+import com.nowon.shop.domain.payment.service.PaymentService;
 import com.nowon.shop.domain.product.entity.Product;
 import com.nowon.shop.domain.product.repository.ProductRepository;
 import com.nowon.shop.global.exception.BusinessException;
@@ -29,6 +30,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final MemberService memberService;
     private final ProductRepository productRepository;
+    private final PaymentService paymentService;
 
     // 주문 생성 (다중 상품 지원)
     @Transactional
@@ -78,15 +80,7 @@ public class OrderService {
     // 주문 취소 — 본인 주문만 취소 가능
     @Transactional
     public void cancelOrder(Long memberId, Long orderId) {
-        Order order = getOwnedOrder(memberId, orderId);
-
-        // 취소 가능 상태 검증은 Order 엔티티 내부에서 처리
-        order.cancel();
-
-        // 재고 복구
-        for (OrderItem item : order.getOrderItems()) {
-            item.getProduct().addStock(item.getQuantity());
-        }
+        cancelWithRefund(getOwnedOrder(memberId, orderId));
     }
 
     // 주문 취소 (어드민용) — 소유권 검증 없이 처리
@@ -94,11 +88,30 @@ public class OrderService {
     public void cancelOrderByAdmin(Long orderId) {
         Order order = orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND));
+        cancelWithRefund(order);
+    }
+
+    /**
+     * 주문 취소 공통 처리 — 결제 완료 주문이면 Stripe 환불까지 수행한다.
+     *
+     * 순서에 의도가 있다.
+     *   1) order.cancel()  — SHIPPED/DELIVERED 검증. 취소 불가 주문에 환불 요청을 보내지 않는다.
+     *   2) restoreStock()  — 아직 DB에 반영되지 않은 영속성 컨텍스트 상의 변경
+     *   3) refund()        — 실패 시 예외로 트랜잭션이 롤백되어 1·2도 함께 되돌아간다
+     *
+     * 즉 "환불되지 않았는데 취소된 주문"은 생기지 않는다.
+     * 반대로 환불 성공 직후 커밋이 실패하는 창은 남아 있으며, 이는 외부 결제 API와
+     * DB를 한 트랜잭션으로 묶을 수 없는 구조적 한계다(운영 시 환불 로그로 대사 필요).
+     */
+    private void cancelWithRefund(Order order) {
+        // cancel()이 상태를 바꾸기 전에 결제 여부를 기록해 둔다.
+        boolean wasPaid = order.getStatus() == OrderStatus.PAID;
 
         order.cancel();
+        order.restoreStock();
 
-        for (OrderItem item : order.getOrderItems()) {
-            item.getProduct().addStock(item.getQuantity());
+        if (wasPaid) {
+            paymentService.refund(order.getPaymentIntentId());
         }
     }
 
@@ -163,9 +176,7 @@ public class OrderService {
             // Order.cancel()의 상태 검증을 거치지 않고 직접 처리
             // (PENDING 상태인 것을 이미 쿼리에서 보장했고, 검증 메서드를 우회할 사유가 명확)
             order.updateStatus(OrderStatus.CANCELLED);
-            for (OrderItem item : order.getOrderItems()) {
-                item.getProduct().addStock(item.getQuantity());
-            }
+            order.restoreStock();
             log.info("만료된 PENDING 주문 자동 취소 — orderId={}, createdDate={}",
                     order.getId(), order.getCreatedDate());
         }

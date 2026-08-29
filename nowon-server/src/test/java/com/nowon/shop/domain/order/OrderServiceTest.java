@@ -10,6 +10,7 @@ import com.nowon.shop.domain.order.entity.OrderItem;
 import com.nowon.shop.domain.order.entity.OrderStatus;
 import com.nowon.shop.domain.order.repository.OrderRepository;
 import com.nowon.shop.domain.order.service.OrderService;
+import com.nowon.shop.domain.payment.service.PaymentService;
 import com.nowon.shop.domain.product.entity.Product;
 import com.nowon.shop.domain.product.entity.ProductStatus;
 import com.nowon.shop.domain.product.repository.ProductRepository;
@@ -30,6 +31,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -46,6 +49,9 @@ class OrderServiceTest {
 
     @Mock
     private ProductRepository productRepository;
+
+    @Mock
+    private PaymentService paymentService;
 
     // ── 헬퍼 ─────────────────────────────────────────────────────────────
 
@@ -66,17 +72,6 @@ class OrderServiceTest {
         return member;
     }
 
-    private Product createProduct(int stock) {
-        return Product.builder()
-                .name("테스트 상품")
-                .category("전자기기")
-                .price(10000L)
-                .stock(stock)
-                .description("테스트 설명")
-                .status(ProductStatus.SELL)
-                .build();
-    }
-
     /** 주문 + 단일 OrderItem 조합을 만든다. */
     private Order createOrder(Member member, Product product, int quantity, OrderStatus status) {
         Order order = Order.builder()
@@ -93,6 +88,17 @@ class OrderServiceTest {
                 .build();
         order.getOrderItems().add(orderItem);
         return order;
+    }
+
+    private Product createProduct(int stock) {
+        return Product.builder()
+                .name("테스트 상품")
+                .category("전자기기")
+                .price(10000L)
+                .stock(stock)
+                .description("테스트 설명")
+                .status(ProductStatus.SELL)
+                .build();
     }
 
     private OrderItemRequest createItemRequest(Long productId, int quantity) {
@@ -226,6 +232,9 @@ class OrderServiceTest {
         assertThatThrownBy(() -> orderService.cancelOrder(1L, 1L))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.ORDER_CANNOT_CANCEL.getMessage());
+
+        // 취소 불가 주문에는 환불 요청이 나가면 안 된다
+        verify(paymentService, never()).refund(any());
     }
 
     @Test
@@ -244,6 +253,27 @@ class OrderServiceTest {
         // then
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         assertThat(product.getStock()).isEqualTo(10); // 재고 복구 확인
+        verify(paymentService, never()).refund(any()); // 미결제 주문은 환불 대상 아님
+    }
+
+    @Test
+    @DisplayName("주문 취소 - 이미 취소된 주문을 다시 취소하면 재고가 이중 복구되지 않는다")
+    void cancelOrder_alreadyCancelled() {
+        // given — 첫 취소로 재고가 이미 복구된 주문
+        Member member = createMember();
+        Product product = createProduct(7);
+        Order order = createOrder(member, product, 3, OrderStatus.PENDING);
+
+        given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
+        orderService.cancelOrder(1L, 1L);
+        assertThat(product.getStock()).isEqualTo(10);
+
+        // when & then — 두 번째 취소는 거부되어야 한다
+        assertThatThrownBy(() -> orderService.cancelOrder(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(ErrorCode.ORDER_ALREADY_CANCELLED.getMessage());
+
+        assertThat(product.getStock()).isEqualTo(10); // 10 그대로 — 13이 되면 안 된다
     }
 
     @Test
@@ -266,6 +296,65 @@ class OrderServiceTest {
     }
 
     @Test
+    @DisplayName("주문 취소 - 결제 완료 주문은 Stripe 환불까지 수행한다")
+    void cancelOrder_paidTriggersRefund() {
+        // given
+        Member member = createMember();
+        Product product = createProduct(7);
+        Order order = createOrder(member, product, 3, OrderStatus.PENDING);
+        order.markPaid("pi_test_123"); // 결제 완료 + PaymentIntent id 기록
+
+        given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
+
+        // when
+        orderService.cancelOrder(1L, 1L);
+
+        // then
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(product.getStock()).isEqualTo(10);
+        verify(paymentService).refund("pi_test_123");
+    }
+
+    @Test
+    @DisplayName("주문 취소 - 환불 실패 시 예외가 전파되어 취소가 롤백된다")
+    void cancelOrder_refundFailurePropagates() {
+        // given
+        Member member = createMember();
+        Product product = createProduct(7);
+        Order order = createOrder(member, product, 3, OrderStatus.PENDING);
+        order.markPaid("pi_test_123");
+
+        given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
+        willThrow(new BusinessException(ErrorCode.PAYMENT_REFUND_FAILED))
+                .given(paymentService).refund("pi_test_123");
+
+        // when & then — 예외가 밖으로 나가야 @Transactional이 롤백한다
+        assertThatThrownBy(() -> orderService.cancelOrder(1L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(ErrorCode.PAYMENT_REFUND_FAILED.getMessage());
+    }
+
+    @Test
+    @DisplayName("주문 취소(어드민) - 결제 완료 주문은 환불까지 수행한다")
+    void cancelOrderByAdmin_paidTriggersRefund() {
+        // given
+        Member member = createMember();
+        Product product = createProduct(7);
+        Order order = createOrder(member, product, 3, OrderStatus.PENDING);
+        order.markPaid("pi_admin_456");
+
+        given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
+
+        // when
+        orderService.cancelOrderByAdmin(1L);
+
+        // then
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
+        assertThat(product.getStock()).isEqualTo(10);
+        verify(paymentService).refund("pi_admin_456");
+    }
+
+    @Test
     @DisplayName("주문 상태 변경 - 존재하지 않는 주문이면 예외 발생")
     void updateOrderStatus_orderNotFound() {
         // given
@@ -285,7 +374,18 @@ class OrderServiceTest {
         // given
         Member member = createMember();
         Product product = createProduct(5); // 5개 차감된 상태로 가정
-        Order pending = createOrder(member, product, 5, OrderStatus.PENDING);
+
+        Order pending = Order.builder()
+                .member(member)
+                .totalPrice(50000L)
+                .build();
+        OrderItem item = OrderItem.builder()
+                .order(pending)
+                .product(product)
+                .orderPrice(10000L)
+                .quantity(5)
+                .build();
+        pending.getOrderItems().add(item);
 
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(30);
         given(orderRepository.findPendingOrdersBefore(OrderStatus.PENDING, cutoff))
