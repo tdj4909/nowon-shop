@@ -119,7 +119,7 @@ class MemberServiceTest {
     }
 
     @Test
-    @DisplayName("로그인 - 존재하지 않는 이메일이면 예외 발생")
+    @DisplayName("로그인 - 존재하지 않는 이메일이면 LOGIN_FAILED")
     void login_memberNotFound() {
         // given
         LoginRequestDTO dto = new LoginRequestDTO("notexist@test.com", "password");
@@ -128,21 +128,14 @@ class MemberServiceTest {
         // when & then
         assertThatThrownBy(() -> memberService.login(dto))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining(ErrorCode.MEMBER_NOT_FOUND.getMessage());
+                .hasMessageContaining(ErrorCode.LOGIN_FAILED.getMessage());
     }
 
     @Test
-    @DisplayName("로그인 - 비밀번호 불일치 시 예외 발생")
+    @DisplayName("로그인 - 비밀번호 불일치 시 LOGIN_FAILED")
     void login_wrongPassword() {
         // given
-        Member member = Member.builder()
-                .email("test@test.com")
-                .name("테스터")
-                .password("encodedPassword")
-                .role(Role.USER)
-                .status(MemberStatus.ACTIVE)
-                .build();
-
+        Member member = createMember(MemberStatus.ACTIVE);
         LoginRequestDTO dto = new LoginRequestDTO("test@test.com", "wrongPassword");
 
         given(memberRepository.findByEmail("test@test.com")).willReturn(Optional.of(member));
@@ -151,6 +144,75 @@ class MemberServiceTest {
         // when & then
         assertThatThrownBy(() -> memberService.login(dto))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining(ErrorCode.MEMBER_NOT_FOUND.getMessage()); // 보안상 동일 메시지
+                .hasMessageContaining(ErrorCode.LOGIN_FAILED.getMessage());
+    }
+
+    @Test
+    @DisplayName("로그인 - 이메일 없음과 비밀번호 불일치는 구분되지 않는다 (계정 열거 방지)")
+    void login_failureMessagesAreIndistinguishable() {
+        // given — 없는 이메일
+        given(memberRepository.findByEmail("notexist@test.com")).willReturn(Optional.empty());
+
+        // given — 존재하지만 비밀번호가 틀린 계정
+        Member member = createMember(MemberStatus.ACTIVE);
+        given(memberRepository.findByEmail("test@test.com")).willReturn(Optional.of(member));
+        given(passwordEncoder.matches("wrongPassword", "encodedPassword")).willReturn(false);
+
+        // when
+        Throwable unknownEmail = catchThrowable(() ->
+                memberService.login(new LoginRequestDTO("notexist@test.com", "password")));
+        Throwable wrongPassword = catchThrowable(() ->
+                memberService.login(new LoginRequestDTO("test@test.com", "wrongPassword")));
+
+        // then — 메시지와 HTTP 상태가 모두 같아야 가입 여부를 추측할 수 없다
+        assertThat(unknownEmail).hasMessage(wrongPassword.getMessage());
+        assertThat(((BusinessException) unknownEmail).getErrorCode().getHttpStatus())
+                .isEqualTo(((BusinessException) wrongPassword).getErrorCode().getHttpStatus());
+    }
+
+    @Test
+    @DisplayName("로그인 - 차단된 계정은 비밀번호가 맞아도 토큰을 발급하지 않는다")
+    void login_bannedMemberRejected() {
+        // given
+        Member member = createMember(MemberStatus.BANNED);
+        LoginRequestDTO dto = new LoginRequestDTO("test@test.com", "rawPassword");
+
+        given(memberRepository.findByEmail("test@test.com")).willReturn(Optional.of(member));
+        given(passwordEncoder.matches("rawPassword", "encodedPassword")).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> memberService.login(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(ErrorCode.MEMBER_NOT_ACTIVE.getMessage());
+
+        verify(jwtTokenProvider, never()).createToken(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("로그인 - 탈퇴한 계정도 로그인할 수 없다")
+    void login_withdrawnMemberRejected() {
+        // given
+        Member member = createMember(MemberStatus.WITHDRAWN);
+        LoginRequestDTO dto = new LoginRequestDTO("test@test.com", "rawPassword");
+
+        given(memberRepository.findByEmail("test@test.com")).willReturn(Optional.of(member));
+        given(passwordEncoder.matches("rawPassword", "encodedPassword")).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> memberService.login(dto))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(ErrorCode.MEMBER_NOT_ACTIVE.getMessage());
+
+        verify(jwtTokenProvider, never()).createToken(anyString(), anyString());
+    }
+
+    private Member createMember(MemberStatus status) {
+        return Member.builder()
+                .email("test@test.com")
+                .name("테스터")
+                .password("encodedPassword")
+                .role(Role.USER)
+                .status(status)
+                .build();
     }
 }

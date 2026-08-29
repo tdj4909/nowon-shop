@@ -92,12 +92,25 @@ public class MemberService {
         member.updateStatus(status);
     }
 
+    /**
+     * 로그인 — 실패 사유를 구분해 노출하지 않는다.
+     *
+     * 이메일이 없을 때와 비밀번호가 틀렸을 때 서로 다른 응답을 주면
+     * 공격자가 "가입된 이메일" 목록을 만들 수 있다(account enumeration).
+     * 두 경우 모두 LOGIN_FAILED(401)로 통일한다.
+     */
     public String login(LoginRequestDTO dto) {
         Member member = memberRepository.findByEmail(dto.getEmail())
-                .orElseThrow(() -> new BusinessException(ErrorCode.MEMBER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.LOGIN_FAILED));
 
         if (!passwordEncoder.matches(dto.getPassword(), member.getPassword())) {
             throw new BusinessException(ErrorCode.LOGIN_FAILED);
+        }
+
+        // 계정 상태 검증은 비밀번호 확인 이후에 수행한다.
+        // 먼저 검사하면 비밀번호를 모르는 제3자에게 "차단된 계정이 존재한다"는 사실이 노출된다.
+        if (member.getStatus() != MemberStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.MEMBER_NOT_ACTIVE);
         }
 
         return jwtTokenProvider.createToken(member.getEmail(), member.getRole().name());

@@ -50,13 +50,20 @@ class OrderServiceTest {
     // ── 헬퍼 ─────────────────────────────────────────────────────────────
 
     private Member createMember() {
-        return Member.builder()
+        return createMember(1L);
+    }
+
+    /** 소유권 검증 테스트를 위해 id가 필요하므로 리플렉션으로 주입한다. */
+    private Member createMember(Long id) {
+        Member member = Member.builder()
                 .email("test@test.com")
                 .password("password")
                 .name("테스터")
                 .role(Role.USER)
                 .status(MemberStatus.ACTIVE)
                 .build();
+        ReflectionTestUtils.setField(member, "id", id);
+        return member;
     }
 
     private Product createProduct(int stock) {
@@ -68,6 +75,24 @@ class OrderServiceTest {
                 .description("테스트 설명")
                 .status(ProductStatus.SELL)
                 .build();
+    }
+
+    /** 주문 + 단일 OrderItem 조합을 만든다. */
+    private Order createOrder(Member member, Product product, int quantity, OrderStatus status) {
+        Order order = Order.builder()
+                .member(member)
+                .totalPrice(product.getPrice() * quantity)
+                .build();
+        order.updateStatus(status);
+
+        OrderItem orderItem = OrderItem.builder()
+                .order(order)
+                .product(product)
+                .orderPrice(product.getPrice())
+                .quantity(quantity)
+                .build();
+        order.getOrderItems().add(orderItem);
+        return order;
     }
 
     private OrderItemRequest createItemRequest(Long productId, int quantity) {
@@ -109,7 +134,6 @@ class OrderServiceTest {
         // given
         Member member = createMember();
         Product product1 = createProduct(10); // 10,000원
-        Product product2 = createProduct(5);
 
         // product2를 다른 가격으로 만들기 위해 Builder로 직접 생성
         Product product2WithDifferentPrice = Product.builder()
@@ -123,11 +147,7 @@ class OrderServiceTest {
         given(memberService.findById(1L)).willReturn(member);
         given(productRepository.findByIdWithLock(1L)).willReturn(Optional.of(product1));
         given(productRepository.findByIdWithLock(2L)).willReturn(Optional.of(product2WithDifferentPrice));
-        given(orderRepository.save(any(Order.class))).willAnswer(i -> {
-            Order o = i.getArgument(0);
-            // ID가 없으면 검증이 어려우니 save가 호출됐다는 사실만 확인
-            return o;
-        });
+        given(orderRepository.save(any(Order.class))).willAnswer(i -> i.getArgument(0));
 
         // when
         orderService.createOrder(1L, requests(
@@ -198,25 +218,12 @@ class OrderServiceTest {
         // given
         Member member = createMember();
         Product product = createProduct(10);
+        Order order = createOrder(member, product, 1, OrderStatus.SHIPPED);
 
-        Order order = Order.builder()
-                .member(member)
-                .totalPrice(10000L)
-                .build();
-        order.updateStatus(OrderStatus.SHIPPED);
-
-        OrderItem orderItem = OrderItem.builder()
-                .order(order)
-                .product(product)
-                .orderPrice(10000L)
-                .quantity(1)
-                .build();
-        order.getOrderItems().add(orderItem);
-
-        given(orderRepository.findById(1L)).willReturn(Optional.of(order));
+        given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
 
         // when & then
-        assertThatThrownBy(() -> orderService.cancelOrder(1L))
+        assertThatThrownBy(() -> orderService.cancelOrder(1L, 1L))
                 .isInstanceOf(BusinessException.class)
                 .hasMessageContaining(ErrorCode.ORDER_CANNOT_CANCEL.getMessage());
     }
@@ -227,28 +234,35 @@ class OrderServiceTest {
         // given
         Member member = createMember();
         Product product = createProduct(7); // 이미 3개 차감된 상태
+        Order order = createOrder(member, product, 3, OrderStatus.PENDING);
 
-        Order order = Order.builder()
-                .member(member)
-                .totalPrice(30000L)
-                .build();
-
-        OrderItem orderItem = OrderItem.builder()
-                .order(order)
-                .product(product)
-                .orderPrice(10000L)
-                .quantity(3)
-                .build();
-        order.getOrderItems().add(orderItem);
-
-        given(orderRepository.findById(1L)).willReturn(Optional.of(order));
+        given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
 
         // when
-        orderService.cancelOrder(1L);
+        orderService.cancelOrder(1L, 1L);
 
         // then
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         assertThat(product.getStock()).isEqualTo(10); // 재고 복구 확인
+    }
+
+    @Test
+    @DisplayName("주문 취소 - 타인의 주문은 취소할 수 없다")
+    void cancelOrder_notOwner() {
+        // given — 주문자는 1번 회원, 요청자는 2번 회원
+        Member owner = createMember(1L);
+        Product product = createProduct(7);
+        Order order = createOrder(owner, product, 3, OrderStatus.PENDING);
+
+        given(orderRepository.findByIdWithItems(1L)).willReturn(Optional.of(order));
+
+        // when & then
+        assertThatThrownBy(() -> orderService.cancelOrder(2L, 1L))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining(ErrorCode.ORDER_FORBIDDEN.getMessage());
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PENDING);
+        assertThat(product.getStock()).isEqualTo(7); // 재고가 건드려지지 않아야 한다
     }
 
     @Test
@@ -271,18 +285,7 @@ class OrderServiceTest {
         // given
         Member member = createMember();
         Product product = createProduct(5); // 5개 차감된 상태로 가정
-
-        Order pending = Order.builder()
-                .member(member)
-                .totalPrice(50000L)
-                .build();
-        OrderItem item = OrderItem.builder()
-                .order(pending)
-                .product(product)
-                .orderPrice(10000L)
-                .quantity(5)
-                .build();
-        pending.getOrderItems().add(item);
+        Order pending = createOrder(member, product, 5, OrderStatus.PENDING);
 
         LocalDateTime cutoff = LocalDateTime.now().minusMinutes(30);
         given(orderRepository.findPendingOrdersBefore(OrderStatus.PENDING, cutoff))
