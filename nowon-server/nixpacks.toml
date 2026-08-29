@@ -4,13 +4,28 @@
 cmds = ["./gradlew bootJar -x test --no-daemon"]
 
 [start]
-# MaxRAMPercentage=60
-#   JVM 기본값은 컨테이너 메모리의 25%다. 512MB 컨테이너면 힙이 128MB뿐이라
-#   Spring Boot + Hibernate + Hikari + Stripe SDK가 기동하다 OOM이 난다.
-#   60%로 올리되(512MB 기준 약 307MB), 나머지는 metaspace/코드캐시/스레드 스택에 남긴다.
-#   힙을 75% 이상으로 올리면 이번엔 non-heap이 모자라 컨테이너가 kill된다.
-# MaxMetaspaceSize=128m
-#   metaspace는 기본이 무제한이라 클래스로딩이 새면 컨테이너째 죽는다. 상한을 둔다.
-# ExitOnOutOfMemoryError
+# 컨테이너가 SIGKILL로 죽는 것을 막기 위한 설정.
+#
+# 이 앱이 죽던 방식은 Java OutOfMemoryError가 아니었다. OOM이면 스택 트레이스가
+# 남는데, 로그에는 Spring 배너가 두 번 찍히고 PID 1로 재시작되는 것 외에 아무
+# 흔적이 없었다. 커널이 cgroup 한도 초과로 죽인 것이고, 따라서 줄여야 하는 건
+# 힙이 아니라 JVM 전체 RSS다.
+#
+# -Xms/-Xmx를 비율이 아닌 절대값으로
+#   MaxRAMPercentage 계열은 JVM이 cgroup 한도를 정확히 읽는다는 전제에 의존한다.
+#   탐지가 어긋나면 호스트 메모리 기준으로 힙을 잡는다. 실제로 컨테이너 힌트 없이
+#   측정했을 때 JVM이 초기 힙만 222MB를 커밋했다 — 기동 도중 죽기에 충분한 양이고,
+#   -Xmx만으로는 막히지 않는다(초기 힙은 -Xms가 결정한다). 절대값은 이 전제를 없앤다.
+#   실측 힙 사용량은 기동 직후 약 83MB라 64m→256m 범위면 충분하다.
+# -XX:+UseSerialGC
+#   가장 큰 절감. G1은 최대 힙에 비례해 부기용 네이티브 메모리를 잡는데,
+#   실측 결과 그것만 55MB였다. SerialGC로 바꾸니 0.3MB.
+#   코어가 적은 컨테이너에서는 G1의 동시 수집 이점도 어차피 거의 없다.
+# -XX:MaxMetaspaceSize / -XX:ReservedCodeCacheSize
+#   기본값이 사실상 무제한이라 상한이 없으면 컨테이너째 죽는다. 실측(각 15MB/22MB)에
+#   여유를 둔 값이며, 최악의 경우에도 총합이 512MB 아래에 머물게 하는 역할이다.
+# -XX:+ExitOnOutOfMemoryError
 #   힙 OOM 이후의 JVM은 상태를 신뢰할 수 없다. 즉시 종료해 Railway가 재시작하게 한다.
-cmd = "java -XX:MaxRAMPercentage=60 -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError -jar build/libs/shop-0.0.1-SNAPSHOT.jar"
+#
+# 실측(jcmd VM.native_memory): 전체 committed 299MB, 힙 83MB, 기동 6.3초
+cmd = "java -Xms64m -Xmx256m -XX:+UseSerialGC -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=64m -Xss512k -XX:+ExitOnOutOfMemoryError -jar build/libs/shop-0.0.1-SNAPSHOT.jar"
