@@ -4,28 +4,28 @@
 cmds = ["./gradlew bootJar -x test --no-daemon"]
 
 [start]
-# 컨테이너가 SIGKILL로 죽는 것을 막기 위한 설정.
+# 실측 기준(jcmd VM.metaspace / VM.native_memory), 요청을 처리시킨 뒤의 값:
+#   전체 committed  268MB
+#   힙              85MB
+#   metaspace       97MB   (기동 직후 86MB → 요청 4건 처리 후 97MB)
+#   code            27MB
 #
-# 이 앱이 죽던 방식은 Java OutOfMemoryError가 아니었다. OOM이면 스택 트레이스가
-# 남는데, 로그에는 Spring 배너가 두 번 찍히고 PID 1로 재시작되는 것 외에 아무
-# 흔적이 없었다. 커널이 cgroup 한도 초과로 죽인 것이고, 따라서 줄여야 하는 건
-# 힙이 아니라 JVM 전체 RSS다.
-#
-# -Xms/-Xmx를 비율이 아닌 절대값으로
+# -Xms64m -Xmx256m (비율이 아닌 절대값)
 #   MaxRAMPercentage 계열은 JVM이 cgroup 한도를 정확히 읽는다는 전제에 의존한다.
-#   탐지가 어긋나면 호스트 메모리 기준으로 힙을 잡는다. 실제로 컨테이너 힌트 없이
-#   측정했을 때 JVM이 초기 힙만 222MB를 커밋했다 — 기동 도중 죽기에 충분한 양이고,
-#   -Xmx만으로는 막히지 않는다(초기 힙은 -Xms가 결정한다). 절대값은 이 전제를 없앤다.
-#   실측 힙 사용량은 기동 직후 약 83MB라 64m→256m 범위면 충분하다.
+#   컨테이너 힌트 없이 측정했을 때 JVM이 호스트 메모리 기준으로 초기 힙 222MB를
+#   즉시 커밋했다. -Xmx만으로는 막히지 않는다(초기 힙은 -Xms가 정한다).
 # -XX:+UseSerialGC
-#   가장 큰 절감. G1은 최대 힙에 비례해 부기용 네이티브 메모리를 잡는데,
-#   실측 결과 그것만 55MB였다. SerialGC로 바꾸니 0.3MB.
-#   코어가 적은 컨테이너에서는 G1의 동시 수집 이점도 어차피 거의 없다.
-# -XX:MaxMetaspaceSize / -XX:ReservedCodeCacheSize
-#   기본값이 사실상 무제한이라 상한이 없으면 컨테이너째 죽는다. 실측(각 15MB/22MB)에
-#   여유를 둔 값이며, 최악의 경우에도 총합이 512MB 아래에 머물게 하는 역할이다.
+#   G1은 최대 힙에 비례해 부기용 네이티브 메모리를 잡는다. 실측 55MB였던 것이
+#   SerialGC에서 0.3MB가 됐다. 코어가 적은 컨테이너에서는 G1의 이점도 거의 없다.
+# -XX:MaxMetaspaceSize=256m
+#   상한을 너무 낮게 잡으면 컨테이너 한도와 무관하게 JVM이 스스로 죽는다.
+#   실제로 96m으로 잡았다가 첫 요청에서 OutOfMemoryError: Metaspace로 종료됐다.
+#   metaspace는 기동만으로 이미 86MB를 쓰고 트래픽에 따라 더 자란다.
+#   실측 97MB에 2.5배 여유를 둔 값이며, 상한일 뿐 미리 커밋되지는 않는다.
 # -XX:+ExitOnOutOfMemoryError
 #   힙 OOM 이후의 JVM은 상태를 신뢰할 수 없다. 즉시 종료해 Railway가 재시작하게 한다.
 #
-# 실측(jcmd VM.native_memory): 전체 committed 299MB, 힙 83MB, 기동 6.3초
-cmd = "java -Xms64m -Xmx256m -XX:+UseSerialGC -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=64m -Xss512k -XX:+ExitOnOutOfMemoryError -jar build/libs/shop-0.0.1-SNAPSHOT.jar"
+# 의도적으로 넣지 않은 것:
+#   -Xss  스레드 스택을 줄여도 실측 절감이 1MB 남짓인데 StackOverflowError 위험만 는다.
+#   -XX:ReservedCodeCacheSize  예약(가상 주소)만 줄일 뿐 RSS는 그대로다. 효과가 없다.
+cmd = "java -Xms64m -Xmx256m -XX:+UseSerialGC -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError -jar build/libs/shop-0.0.1-SNAPSHOT.jar"

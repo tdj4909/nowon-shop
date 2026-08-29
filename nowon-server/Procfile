@@ -1,1 +1,1 @@
-web: java -Xms64m -Xmx256m -XX:+UseSerialGC -XX:MaxMetaspaceSize=96m -XX:ReservedCodeCacheSize=64m -Xss512k -XX:+ExitOnOutOfMemoryError -jar build/libs/shop-0.0.1-SNAPSHOT.jar
+web: java -Xms64m -Xmx256m -XX:+UseSerialGC -XX:MaxMetaspaceSize=256m -XX:+ExitOnOutOfMemoryError -jar build/libs/shop-0.0.1-SNAPSHOT.jar
