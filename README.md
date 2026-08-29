@@ -93,6 +93,9 @@ nowon-shop/
 - Order price snapshot — `OrderItem.orderPrice` preserves the price at time of purchase
 - Stripe Webhook integration — signature verification, idempotency via event-id tracking, order status update on payment result
 - Scheduled cleanup of expired `PENDING` orders — abandoned checkouts are auto-cancelled and stock is restored
+- Guarded order status transitions — webhook results are applied only from the states they are valid for, never blindly overwritten
+- Automatic Stripe refund when a `PAID` order is cancelled, including payments that arrive after the order was already cancelled
+- Blocked (`BANNED`) and withdrawn (`WITHDRAWN`) accounts are rejected at login
 - Swagger UI with JWT authentication support
 
 ---
@@ -159,6 +162,32 @@ order:
     cleanup-interval-ms: 300000  # 5 minutes
 ```
 
+### Guarded Status Transitions & Refunds
+Cleanup and payment race each other: the scheduler can cancel an abandoned order and restore its stock moments before a late `payment_intent.succeeded` arrives. Applying the webhook result unconditionally would revive that order as `PAID` while its stock had already been given back — money taken for something that cannot be shipped.
+
+The webhook therefore branches on the order's current state instead of overwriting it:
+
+| Current state | `payment_intent.succeeded` | `payment_intent.payment_failed` |
+|---|---|---|
+| `PENDING` | → `PAID`, records the PaymentIntent id | → `CANCELLED`, restores stock |
+| `PAID` | ignored (duplicate delivery) | ignored |
+| `CANCELLED` | **auto-refund** — the order can no longer be fulfilled | ignored (stock already restored) |
+| other | logged, no transition | logged, no transition |
+
+`Order.paymentIntentId` is captured on the `PAID` transition so a later cancellation can issue the refund. Cancelling a `PAID` order validates the state, restores stock, then calls Stripe — a refund failure throws and rolls the transaction back, so a cancelled-but-unrefunded order never commits.
+
+```java
+// OrderService.cancelWithRefund
+boolean wasPaid = order.getStatus() == OrderStatus.PAID;
+order.cancel();        // SHIPPED/DELIVERED 검증
+order.restoreStock();
+if (wasPaid) {
+    paymentService.refund(order.getPaymentIntentId()); // 실패 시 위 변경까지 롤백
+}
+```
+
+Stock restoration lives on the `Order` entity rather than being copied into each cancel path, since a missed copy silently leaks inventory.
+
 ### Server-side Search & Pagination
 Filtering and pagination run at the database level using JPQL with dynamic parameters and Spring Data `Pageable`.  
 Performance stays consistent regardless of data volume, avoiding the memory overhead of in-memory filtering.
@@ -168,7 +197,8 @@ Performance stays consistent regardless of data volume, avoiding the memory over
 Stack traces are never exposed to clients. All errors return a structured `ApiResponse` with an appropriate HTTP status.
 
 ### Security Considerations
-- Login errors return the same message whether the email or password is wrong, preventing account enumeration.
+- Login errors return the same message and status whether the email or password is wrong, preventing account enumeration.
+- Account status is checked *after* the password is verified, so a wrong-password attempt cannot reveal that a blocked account exists.
 - `@Transactional(readOnly = true)` is set as the class-level default; write methods override with `@Transactional`.
 - Stripe Webhook requests are verified using the signature header before processing.
 - Swagger UI can be disabled in production via Spring Profile — currently enabled for demo purposes.
@@ -299,3 +329,4 @@ stripe listen --forward-to localhost:8080/api/payments/webhook
 | 13 | Landing page, auth-aware UI, SPA routing fix (vercel.json) |
 | 14 | Deployment — Railway (backend + MySQL) / Vercel (frontend) |
 | 15 | Webhook idempotency via `processed_stripe_events` + scheduled cleanup of abandoned `PENDING` orders |
+| 16 | Guarded status transitions, Stripe refunds on cancellation, stock recovery on payment failure, blocked-account login rejection |
