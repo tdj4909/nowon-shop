@@ -1,5 +1,16 @@
 [phases.build]
-cmds = ["./gradlew bootJar -x test"]
+# --no-daemon: 빌드는 일회성이므로 데몬을 띄울 이유가 없다.
+# 데몬이 남아 있으면 빌드가 끝난 뒤에도 힙을 점유해 빌더 메모리를 낭비한다.
+cmds = ["./gradlew bootJar -x test --no-daemon"]
 
 [start]
-cmd = "java -jar build/libs/shop-0.0.1-SNAPSHOT.jar"
+# MaxRAMPercentage=60
+#   JVM 기본값은 컨테이너 메모리의 25%다. 512MB 컨테이너면 힙이 128MB뿐이라
+#   Spring Boot + Hibernate + Hikari + Stripe SDK가 기동하다 OOM이 난다.
+#   60%로 올리되(512MB 기준 약 307MB), 나머지는 metaspace/코드캐시/스레드 스택에 남긴다.
+#   힙을 75% 이상으로 올리면 이번엔 non-heap이 모자라 컨테이너가 kill된다.
+# MaxMetaspaceSize=128m
+#   metaspace는 기본이 무제한이라 클래스로딩이 새면 컨테이너째 죽는다. 상한을 둔다.
+# ExitOnOutOfMemoryError
+#   힙 OOM 이후의 JVM은 상태를 신뢰할 수 없다. 즉시 종료해 Railway가 재시작하게 한다.
+cmd = "java -XX:MaxRAMPercentage=60 -XX:MaxMetaspaceSize=128m -XX:+ExitOnOutOfMemoryError -jar build/libs/shop-0.0.1-SNAPSHOT.jar"
